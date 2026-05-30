@@ -15,7 +15,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import Svg, {
   Circle,
   Defs,
@@ -24,37 +23,35 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 
-import { MechBackground } from "../../../components/ui/background";
-
 const { width: W } = Dimensions.get("window");
 
 const BRAND = {
   primary: "#0F766E",
   secondary: "#1E3A8A",
   accent: "#22C55E",
-
   bg: "#050816",
-  card: "rgba(10,16,32,0.82)",
+  card: "rgba(10,16,32,0.92)",
   border: "rgba(255,255,255,0.08)",
-
   text: "#FFFFFF",
-  muted: "rgba(255,255,255,0.55)",
-
+  muted: "rgba(255,255,255,0.45)",
   input: "rgba(255,255,255,0.04)",
 };
 
-// ─────────────────────────────────────────
-// LOGO
-// ─────────────────────────────────────────
+const LANGUAGES = [
+  { code: "en", label: "English", flag: "🇬🇧" },
+  { code: "fr", label: "Français", flag: "🇫🇷" },
+  { code: "pc", label: "Pidgin", flag: "🇳🇬" },
+];
 
-const BrandLogo = ({ size = 72 }: { size?: number }) => {
+// ─── Brand logo ───────────────────────────────────────────────────────────────
+
+const BrandLogo = ({ size = 64 }: { size?: number }) => {
   const pulse = useRef(new Animated.Value(1)).current;
-
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
-          toValue: 1.04,
+          toValue: 1.05,
           duration: 2200,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
@@ -70,101 +67,140 @@ const BrandLogo = ({ size = 72 }: { size?: number }) => {
   }, []);
 
   const r = size / 2;
-
-  const points = Array.from({ length: 6 }, (_, i) => {
-    const angle = (Math.PI / 180) * (60 * i - 30);
-
-    return {
-      x: r + (r - 2) * Math.cos(angle),
-      y: r + (r - 2) * Math.sin(angle),
-    };
+  const pts = Array.from({ length: 6 }, (_, i) => {
+    const a = (Math.PI / 180) * (60 * i - 30);
+    return { x: r + (r - 2) * Math.cos(a), y: r + (r - 2) * Math.sin(a) };
   });
-
-  const hexPath = points
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-    .join(" ");
+  const hexPath =
+    pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
 
   return (
     <Animated.View
       style={{
         transform: [{ scale: pulse }],
+        shadowColor: BRAND.primary,
+        shadowRadius: 16,
+        shadowOpacity: 0.5,
+        shadowOffset: { width: 0, height: 0 },
       }}
     >
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <Svg width={size} height={size}>
         <Defs>
-          <SvgGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+          <SvgGradient id="lg" x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0%" stopColor={BRAND.primary} />
             <Stop offset="100%" stopColor={BRAND.secondary} />
           </SvgGradient>
         </Defs>
-
-        <Path d={`${hexPath} Z`} fill="url(#grad)" />
-
+        <Path d={hexPath} fill="url(#lg)" />
         <Circle cx={r} cy={r} r={r * 0.44} fill={BRAND.bg} />
-
-        <Circle cx={r} cy={r} r={r * 0.12} fill={BRAND.accent} />
+        <Circle cx={r} cy={r} r={r * 0.13} fill={BRAND.accent} />
       </Svg>
     </Animated.View>
   );
 };
 
-// ─────────────────────────────────────────
-// INPUT
-// ─────────────────────────────────────────
+// ─── Language selector ────────────────────────────────────────────────────────
 
-interface InputProps {
-  label: string;
-  value: string;
-  onChangeText: (v: string) => void;
-  secure?: boolean;
-  icon: string;
-}
+const LangSelector = ({
+  selected,
+  onSelect,
+  enterAnim,
+}: {
+  selected: string;
+  onSelect: (code: string) => void;
+  enterAnim: Animated.Value;
+}) => {
+  const slideY = enterAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [12, 0],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.langRow,
+        { opacity: enterAnim, transform: [{ translateY: slideY }] },
+      ]}
+    >
+      {LANGUAGES.map((lang) => {
+        const active = selected === lang.code;
+        return (
+          <Pressable
+            key={lang.code}
+            onPress={() => onSelect(lang.code)}
+            style={[styles.langPill, active && styles.langPillActive]}
+          >
+            <Text style={styles.langFlag}>{lang.flag}</Text>
+            <Text style={[styles.langLabel, active && styles.langLabelActive]}>
+              {lang.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </Animated.View>
+  );
+};
+
+// ─── Input field ─────────────────────────────────────────────────────────────
 
 const InputField = ({
   label,
   value,
   onChangeText,
-  secure,
+  secure = false,
   icon,
-}: InputProps) => {
+  enterAnim,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  secure?: boolean;
+  icon: string;
+  enterAnim: Animated.Value;
+}) => {
   const [focused, setFocused] = useState(false);
   const [show, setShow] = useState(false);
-
   const borderAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(borderAnim, {
       toValue: focused ? 1 : 0,
-      duration: 220,
+      duration: 200,
       useNativeDriver: false,
     }).start();
   }, [focused]);
 
   const borderColor = borderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["rgba(255,255,255,0.06)", BRAND.primary],
+    outputRange: [BRAND.border, BRAND.primary],
   });
-
   const bgColor = borderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [BRAND.input, "rgba(15,118,110,0.10)"],
+    outputRange: [BRAND.input, "rgba(15,118,110,0.08)"],
+  });
+  const iconColor = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(255,255,255,0.22)", BRAND.primary],
+  });
+  const slideY = enterAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [16, 0],
   });
 
   return (
-    <View style={{ marginBottom: 18 }}>
+    <Animated.View
+      style={[
+        { marginBottom: 16 },
+        { opacity: enterAnim, transform: [{ translateY: slideY }] },
+      ]}
+    >
       <Text style={styles.inputLabel}>{label}</Text>
-
       <Animated.View
-        style={[
-          styles.inputWrap,
-          {
-            borderColor,
-            backgroundColor: bgColor,
-          },
-        ]}
+        style={[styles.inputWrap, { borderColor, backgroundColor: bgColor }]}
       >
-        <Text style={styles.inputIcon}>{icon}</Text>
-
+        <Animated.Text style={[styles.inputIcon, { color: iconColor }]}>
+          {icon}
+        </Animated.Text>
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -172,24 +208,21 @@ const InputField = ({
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder={label}
-          placeholderTextColor="rgba(255,255,255,0.22)"
+          placeholderTextColor="rgba(255,255,255,0.18)"
           style={styles.input}
           autoCapitalize="none"
         />
-
         {secure && (
-          <Pressable onPress={() => setShow((v) => !v)}>
+          <Pressable onPress={() => setShow((v) => !v)} hitSlop={8}>
             <Text style={styles.showText}>{show ? "Hide" : "Show"}</Text>
           </Pressable>
         )}
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 };
 
-// ─────────────────────────────────────────
-// SCREEN
-// ─────────────────────────────────────────
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 interface LoginScreenProps {
   onLogin?: () => void;
@@ -204,24 +237,80 @@ export default function LoginScreen({
 }: LoginScreenProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [lang, setLang] = useState("en");
 
-  const fade = useRef(new Animated.Value(0)).current;
-  const slide = useRef(new Animated.Value(40)).current;
-
-  const buttonScale = useRef(new Animated.Value(1)).current;
+  const logoAnim = useRef(new Animated.Value(0)).current;
+  const headAnim = useRef(new Animated.Value(0)).current;
+  const langAnim = useRef(new Animated.Value(0)).current;
+  const cardAnim = useRef(new Animated.Value(0)).current;
+  const f1Anim = useRef(new Animated.Value(0)).current;
+  const f2Anim = useRef(new Animated.Value(0)).current;
+  const forgotAnim = useRef(new Animated.Value(0)).current;
+  const btnAnim = useRef(new Animated.Value(0)).current;
+  const metaAnim = useRef(new Animated.Value(0)).current;
+  const footerAnim = useRef(new Animated.Value(0)).current;
+  const btnScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fade, {
+    Animated.stagger(70, [
+      Animated.spring(logoAnim, {
         toValue: 1,
-        duration: 700,
+        tension: 50,
+        friction: 11,
         useNativeDriver: true,
       }),
-
-      Animated.timing(slide, {
-        toValue: 0,
-        duration: 700,
-        easing: Easing.out(Easing.exp),
+      Animated.spring(headAnim, {
+        toValue: 1,
+        tension: 55,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+      Animated.spring(langAnim, {
+        toValue: 1,
+        tension: 55,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+      Animated.spring(cardAnim, {
+        toValue: 1,
+        tension: 45,
+        friction: 13,
+        useNativeDriver: true,
+      }),
+      Animated.spring(f1Anim, {
+        toValue: 1,
+        tension: 55,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+      Animated.spring(f2Anim, {
+        toValue: 1,
+        tension: 55,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+      Animated.spring(forgotAnim, {
+        toValue: 1,
+        tension: 55,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+      Animated.spring(btnAnim, {
+        toValue: 1,
+        tension: 55,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+      Animated.spring(metaAnim, {
+        toValue: 1,
+        tension: 55,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+      Animated.spring(footerAnim, {
+        toValue: 1,
+        tension: 55,
+        friction: 12,
         useNativeDriver: true,
       }),
     ]).start();
@@ -229,22 +318,36 @@ export default function LoginScreen({
 
   const handleLogin = () => {
     Animated.sequence([
-      Animated.spring(buttonScale, {
+      Animated.spring(btnScale, {
         toValue: 0.96,
+        tension: 300,
+        friction: 10,
         useNativeDriver: true,
       }),
-
-      Animated.spring(buttonScale, {
+      Animated.spring(btnScale, {
         toValue: 1,
+        tension: 300,
+        friction: 10,
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      onLogin?.();
-    });
+    ]).start(() => onLogin?.());
   };
 
+  const logoY = logoAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-24, 0],
+  });
+  const cardY = cardAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [32, 0],
+  });
+  const headY = headAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [12, 0],
+  });
+
   return (
-    <MechBackground reticleSize={165} showLabels>
+    <View style={styles.root}>
       <StatusBar
         translucent
         backgroundColor="transparent"
@@ -261,354 +364,317 @@ export default function LoginScreen({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            {/* Logo + wordmark */}
             <Animated.View
-              style={{
-                opacity: fade,
-                transform: [{ translateY: slide }],
-              }}
+              style={[
+                styles.logoBlock,
+                { opacity: logoAnim, transform: [{ translateY: logoY }] },
+              ]}
             >
-              {/* HEADER */}
-              <View style={styles.header}>
-                <BrandLogo />
+              <BrandLogo size={60} />
+              <View style={{ marginLeft: 14 }}>
+                <Text style={styles.wordmark}>LifeLink</Text>
+                <Text style={styles.wordmarkSub}>Mental Wellness Platform</Text>
+              </View>
+            </Animated.View>
 
-                <Text style={styles.brand}>LifeLink</Text>
+            {/* Page heading */}
+            <Animated.View
+              style={[
+                { opacity: headAnim, transform: [{ translateY: headY }] },
+                { marginBottom: 20 },
+              ]}
+            >
+              <Text style={styles.pageTitle}>Welcome back</Text>
+              <Text style={styles.pageSub}>Sign in to your account</Text>
+            </Animated.View>
 
-                <Text style={styles.subtitle}>
-                  Secure mental wellness platform
-                </Text>
+            {/* Language selector */}
+            <LangSelector
+              selected={lang}
+              onSelect={setLang}
+              enterAnim={langAnim}
+            />
+
+            {/* Card */}
+            <Animated.View
+              style={[
+                styles.card,
+                { opacity: cardAnim, transform: [{ translateY: cardY }] },
+              ]}
+            >
+              {/* Teal left border accent */}
+              <View style={styles.cardLeftAccent} />
+
+              {/* Badge */}
+              <View style={styles.badge}>
+                <View style={styles.badgeDot} />
+                <Text style={styles.badgeText}>Protected Session</Text>
               </View>
 
-              {/* CARD */}
-              <View style={styles.card}>
-                {/* TOP LINE */}
-                <LinearGradient
-                  colors={[BRAND.primary, BRAND.secondary, "transparent"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.cardTopLine}
+              <Text style={styles.cardTitle}>Sign In</Text>
+              <Text style={styles.cardSub}>
+                Continue your wellness journey securely.
+              </Text>
+
+              {/* Fields */}
+              <View style={{ marginTop: 24 }}>
+                <InputField
+                  label="Email Address"
+                  value={email}
+                  onChangeText={setEmail}
+                  icon="✉"
+                  enterAnim={f1Anim}
                 />
+                <InputField
+                  label="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  icon="⚿"
+                  secure
+                  enterAnim={f2Anim}
+                />
+              </View>
 
-                {/* BADGE */}
-                <View style={styles.badge}>
-                  <View style={styles.badgeDot} />
-
-                  <Text style={styles.badgeText}>Protected Session</Text>
-                </View>
-
-                {/* TITLE */}
-                <Text style={styles.title}>Welcome Back</Text>
-
-                <Text style={styles.desc}>
-                  Continue your wellness journey securely.
-                </Text>
-
-                {/* INPUTS */}
-                <View style={{ marginTop: 28 }}>
-                  <InputField
-                    label="Email Address"
-                    value={email}
-                    onChangeText={setEmail}
-                    icon="✉"
-                  />
-
-                  <InputField
-                    label="Password"
-                    value={password}
-                    onChangeText={setPassword}
-                    secure
-                    icon="⚿"
-                  />
-                </View>
-
-                {/* FORGOT */}
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={onForgotPass}
-                  style={styles.forgotWrap}
-                >
+              {/* Forgot */}
+              <Animated.View
+                style={[styles.forgotRow, { opacity: forgotAnim }]}
+              >
+                <Pressable onPress={onForgotPass} hitSlop={10}>
                   <Text style={styles.forgotText}>Forgot password?</Text>
-                </TouchableOpacity>
+                </Pressable>
+              </Animated.View>
 
-                {/* BUTTON */}
-                <Animated.View
-                  style={{
-                    transform: [{ scale: buttonScale }],
-                  }}
+              {/* Button */}
+              <Animated.View
+                style={{ opacity: btnAnim, transform: [{ scale: btnScale }] }}
+              >
+                <TouchableOpacity
+                  onPress={handleLogin}
+                  activeOpacity={0.88}
+                  style={styles.btn}
                 >
-                  <TouchableOpacity activeOpacity={0.9} onPress={handleLogin}>
-                    <LinearGradient
-                      colors={[BRAND.primary, BRAND.secondary]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.button}
-                    >
-                      <Text style={styles.buttonText}>Sign In</Text>
-
-                      <View style={styles.buttonDot} />
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </Animated.View>
-
-                {/* META */}
-                <View style={styles.metaRow}>
-                  <View style={styles.metaItem}>
-                    <View
-                      style={[
-                        styles.metaIndicator,
-                        { backgroundColor: BRAND.accent },
-                      ]}
-                    />
-
-                    <Text style={styles.metaText}>Encrypted</Text>
-                  </View>
-
-                  <View style={styles.metaItem}>
-                    <View
-                      style={[
-                        styles.metaIndicator,
-                        { backgroundColor: BRAND.primary },
-                      ]}
-                    />
-
-                    <Text style={styles.metaText}>Private Identity</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* FOOTER */}
-              <View style={styles.footer}>
-                <Text style={styles.footerText}>Don't have an account?</Text>
-
-                <TouchableOpacity onPress={onSignUp}>
-                  <Text style={styles.footerLink}> Create Account</Text>
+                  <Text style={styles.btnText}>Sign In</Text>
+                  <View style={styles.btnDot} />
                 </TouchableOpacity>
-              </View>
+              </Animated.View>
+
+              {/* Meta */}
+              <Animated.View style={[styles.metaRow, { opacity: metaAnim }]}>
+                <View style={styles.metaItem}>
+                  <View
+                    style={[styles.metaDot, { backgroundColor: BRAND.accent }]}
+                  />
+                  <Text style={styles.metaText}>End-to-end encrypted</Text>
+                </View>
+                <View style={styles.metaItem}>
+                  <View
+                    style={[styles.metaDot, { backgroundColor: BRAND.primary }]}
+                  />
+                  <Text style={styles.metaText}>Anonymous identity</Text>
+                </View>
+              </Animated.View>
+            </Animated.View>
+
+            {/* Footer */}
+            <Animated.View style={[styles.footer, { opacity: footerAnim }]}>
+              <Text style={styles.footerText}>New to LifeLink?</Text>
+              <Pressable onPress={onSignUp} hitSlop={10}>
+                <Text style={styles.footerLink}> Create account</Text>
+              </Pressable>
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </MechBackground>
+    </View>
   );
 }
 
-// ─────────────────────────────────────────
-// STYLES
-// ─────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: BRAND.bg },
   scroll: {
     flexGrow: 1,
-    justifyContent: "center",
     paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingTop: 28,
+    paddingBottom: 40,
   },
 
-  header: {
-    alignItems: "center",
-    marginBottom: 34,
-  },
-
-  brand: {
-    marginTop: 16,
-    fontSize: 32,
+  // Logo
+  logoBlock: { flexDirection: "row", alignItems: "center", marginBottom: 32 },
+  wordmark: {
+    fontSize: 22,
     fontWeight: "800",
     color: BRAND.text,
-    letterSpacing: -1,
+    letterSpacing: -0.5,
   },
+  wordmarkSub: { fontSize: 11, color: BRAND.muted, marginTop: 2 },
 
-  subtitle: {
-    marginTop: 6,
-    color: BRAND.muted,
-    fontSize: 14,
+  // Heading
+  pageTitle: {
+    fontSize: 30,
+    fontWeight: "800",
+    color: BRAND.text,
+    letterSpacing: -0.8,
+    marginBottom: 4,
   },
+  pageSub: { fontSize: 14, color: BRAND.muted },
 
-  card: {
-    backgroundColor: BRAND.card,
-    borderRadius: 28,
+  // Language
+  langRow: { flexDirection: "row", gap: 10, marginBottom: 24 },
+  langPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: BRAND.border,
-    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  langPillActive: {
+    borderColor: BRAND.primary,
+    backgroundColor: "rgba(15,118,110,0.12)",
+  },
+  langFlag: { fontSize: 14 },
+  langLabel: { fontSize: 12, fontWeight: "600", color: BRAND.muted },
+  langLabelActive: { color: BRAND.primary },
+
+  // Card
+  card: {
+    backgroundColor: BRAND.card,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: BRAND.border,
     padding: 24,
-
-    shadowColor: BRAND.primary,
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.24,
-    shadowRadius: 24,
-
-    elevation: 10,
+    paddingLeft: 28,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowRadius: 30,
+    shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: 8 },
   },
-
-  cardTopLine: {
+  cardLeftAccent: {
     position: "absolute",
-    top: 0,
     left: 0,
-    right: 0,
-    height: 2,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: BRAND.primary,
+    borderTopLeftRadius: 24,
+    borderBottomLeftRadius: 24,
   },
 
+  // Badge
   badge: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-
     paddingHorizontal: 12,
-    paddingVertical: 7,
-
+    paddingVertical: 6,
     borderRadius: 999,
-
-    backgroundColor: "rgba(15,118,110,0.12)",
-
     borderWidth: 1,
-    borderColor: "rgba(15,118,110,0.24)",
-
-    marginBottom: 22,
+    borderColor: "rgba(15,118,110,0.25)",
+    backgroundColor: "rgba(15,118,110,0.1)",
+    marginBottom: 20,
   },
-
   badgeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 999,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: BRAND.accent,
-    marginRight: 8,
+    marginRight: 7,
   },
-
   badgeText: {
-    color: BRAND.primary,
+    fontSize: 11,
     fontWeight: "700",
-    fontSize: 12,
-  },
-
-  title: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: BRAND.text,
-    letterSpacing: -0.8,
-  },
-
-  desc: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 22,
-    color: BRAND.muted,
-  },
-
-  inputLabel: {
-    color: "rgba(255,255,255,0.55)",
-    marginBottom: 8,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-  },
-
-  inputWrap: {
-    height: 58,
-
-    borderRadius: 16,
-
-    borderWidth: 1,
-
-    flexDirection: "row",
-    alignItems: "center",
-
-    paddingHorizontal: 16,
-  },
-
-  inputIcon: {
-    fontSize: 16,
-    marginRight: 12,
     color: BRAND.primary,
-  },
-
-  input: {
-    flex: 1,
-    color: BRAND.text,
-    fontSize: 15,
-  },
-
-  showText: {
-    color: BRAND.primary,
-    fontWeight: "700",
-    fontSize: 12,
-  },
-
-  forgotWrap: {
-    alignSelf: "flex-end",
-    marginTop: 2,
-    marginBottom: 28,
-  },
-
-  forgotText: {
-    color: BRAND.primary,
-    fontWeight: "600",
-    fontSize: 13,
-  },
-
-  button: {
-    height: 58,
-    borderRadius: 18,
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    flexDirection: "row",
-  },
-
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "800",
     letterSpacing: 0.3,
   },
 
-  buttonDot: {
-    width: 8,
-    height: 8,
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: BRAND.text,
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  cardSub: { fontSize: 13, color: BRAND.muted, lineHeight: 20 },
+
+  // Inputs
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.4)",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  inputWrap: {
+    height: 56,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+  },
+  inputIcon: { fontSize: 15, marginRight: 10 },
+  input: { flex: 1, fontSize: 15, color: BRAND.text },
+  showText: { fontSize: 11, fontWeight: "700", color: BRAND.primary },
+
+  // Forgot
+  forgotRow: { alignSelf: "flex-end", marginTop: 4, marginBottom: 24 },
+  forgotText: { fontSize: 13, color: BRAND.primary, fontWeight: "600" },
+
+  // Button — flat, no gradient
+  btn: {
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: BRAND.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: BRAND.primary,
+    shadowRadius: 16,
+    shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  btnText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: 0.2,
+  },
+  btnDot: {
+    width: 7,
+    height: 7,
     borderRadius: 99,
     backgroundColor: BRAND.accent,
     marginLeft: 10,
   },
 
+  // Meta
   metaRow: {
     flexDirection: "row",
-    marginTop: 24,
-    gap: 18,
+    gap: 20,
+    marginTop: 22,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.06)",
   },
+  metaItem: { flexDirection: "row", alignItems: "center" },
+  metaDot: { width: 5, height: 5, borderRadius: 99, marginRight: 6 },
+  metaText: { fontSize: 11, color: "rgba(255,255,255,0.28)" },
 
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  metaIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 99,
-    marginRight: 6,
-  },
-
-  metaText: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.38)",
-  },
-
+  // Footer
   footer: {
     flexDirection: "row",
     justifyContent: "center",
+    alignItems: "center",
     marginTop: 28,
   },
-
-  footerText: {
-    color: "rgba(255,255,255,0.45)",
-    fontSize: 13,
-  },
-
-  footerLink: {
-    color: BRAND.primary,
-    fontSize: 13,
-    fontWeight: "800",
-  },
+  footerText: { fontSize: 13, color: BRAND.muted },
+  footerLink: { fontSize: 13, fontWeight: "800", color: BRAND.primary },
 });
