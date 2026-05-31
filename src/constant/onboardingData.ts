@@ -41,7 +41,7 @@ export const SLIDES: SlideItem[] = [
     title: "Your identity stays\nyours, always",
     subtitle:
       "Your emotional data is encrypted and stored separately from any identifying information.",
-    accent: "#DC2626",
-    bgAccent: "#FFF1F2",
+    accent: "#8B5CF6",
+    bgAccent: "#F5F3FF",
   },
 ];

@@ -9,6 +9,8 @@ import {
   ViewToken,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+
 import Btn from "../../../components/basics/btn";
 import Text from "../../../components/basics/txt";
 import { SLIDES } from "../../../constant/onboardingData";
@@ -24,6 +26,7 @@ export default function OnboardingScreen({
   onFinish,
   onLogin,
 }: OnboardingScreenProps) {
+  const navigation = useNavigation();
   const [activeIndex, setActiveIndex] = useState(0);
 
   const flatListRef = useRef<FlatList>(null);
@@ -106,7 +109,7 @@ export default function OnboardingScreen({
       }),
     ]).start(() => {
       if (isLast) {
-        onFinish?.();
+        navigation.navigate("Login");
         return;
       }
       flatListRef.current?.scrollToIndex({
@@ -148,7 +151,7 @@ export default function OnboardingScreen({
               style={[styles.logoDot, { backgroundColor: accentColor }]}
             />
             <Text variant="bold" size="lg" color="textPrimary" tracking={-0.5}>
-              LifeLink
+              Abibeka
             </Text>
           </View>
           {!isLast && (
@@ -246,7 +249,7 @@ export default function OnboardingScreen({
                   Already have an account?{" "}
                 </Text>
                 <Text size="sm" variant="semibold" color="brandPrimary">
-                  Sign in
+                  Sign up
                 </Text>
               </Pressable>
             )}

@@ -15,6 +15,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+
 import Svg, {
   Circle,
   Defs,
@@ -22,6 +24,7 @@ import Svg, {
   Path,
   Stop,
 } from "react-native-svg";
+import { useAppStore } from "../../../store/userStore";
 
 const { width: W } = Dimensions.get("window");
 
@@ -235,9 +238,13 @@ export default function LoginScreen({
   onForgotPass,
   onSignUp,
 }: LoginScreenProps) {
+  const navigation = useNavigation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [lang, setLang] = useState("en");
+
+  const setAuthenticated = useAppStore((state) => state.setAuthenticated);
+  const setUserRole = useAppStore((state) => state.setUserRole);
 
   const logoAnim = useRef(new Animated.Value(0)).current;
   const headAnim = useRef(new Animated.Value(0)).current;
@@ -330,7 +337,8 @@ export default function LoginScreen({
         friction: 10,
         useNativeDriver: true,
       }),
-    ]).start(() => onLogin?.());
+    ]).start(() => setAuthenticated(true));
+    setUserRole("USER");
   };
 
   const logoY = logoAnim.interpolate({
@@ -373,7 +381,7 @@ export default function LoginScreen({
             >
               <BrandLogo size={60} />
               <View style={{ marginLeft: 14 }}>
-                <Text style={styles.wordmark}>LifeLink</Text>
+                <Text style={styles.wordmark}>Abibeka</Text>
                 <Text style={styles.wordmarkSub}>Mental Wellness Platform</Text>
               </View>
             </Animated.View>
@@ -478,7 +486,7 @@ export default function LoginScreen({
 
             {/* Footer */}
             <Animated.View style={[styles.footer, { opacity: footerAnim }]}>
-              <Text style={styles.footerText}>New to LifeLink?</Text>
+              <Text style={styles.footerText}>New to Abibeka?</Text>
               <Pressable onPress={onSignUp} hitSlop={10}>
                 <Text style={styles.footerLink}> Create account</Text>
               </Pressable>
