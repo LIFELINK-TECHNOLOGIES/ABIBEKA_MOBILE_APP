@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   /* BOTTOM INPUT COMPONENT */
   inputContainer: {
     position: "absolute",
-    bottom: Platform.OS === "ios" ? 10 : 100,
+    bottom: Platform.OS === "ios" ? 10 : 110,
     left: 0,
     right: 0,
     paddingHorizontal: 20,
