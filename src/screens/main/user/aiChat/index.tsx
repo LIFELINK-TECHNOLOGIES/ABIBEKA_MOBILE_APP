@@ -8,63 +8,67 @@ import {
   TextInput,
   TouchableOpacity,
   Animated,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 
 const BRAND = {
-  primary: "#0F766E",
-  secondary: "#1E3A8A",
+  bg: "#05060A",
+  card: "#0E1524",
+  primary: "#5F4FEF", // Slightly deepened for premium contrast
   accent: "#22C55E",
-
-  bg: "#04060F",
-  card: "#080D1C",
-
-  text: "#F0F4FF",
-  muted: "rgba(240,244,255,0.5)",
-
-  border: "rgba(255,255,255,0.08)",
+  text: "#F1F5F9",
+  textMuted: "#94A3B8",
+  border: "rgba(255,255,255,0.06)",
 };
 
 export default function AbibekaChatScreen() {
   const [input, setInput] = useState("");
-
   const [messages, setMessages] = useState([
     {
       id: "1",
       sender: "ai",
-      text: "Hi, I'm Abibeka. How are you feeling today?",
+      text: "Hi, I’m Abibeka 🤖\nHow can I help you today?",
     },
   ]);
 
-  const pulse = useRef(new Animated.Value(0.5)).current;
+  const typing = useRef(new Animated.Value(0.4)).current;
+  const sendBtnScale = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, {
+        Animated.timing(typing, {
           toValue: 1,
-          duration: 900,
+          duration: 800,
           useNativeDriver: true,
         }),
-        Animated.timing(pulse, {
-          toValue: 0.5,
-          duration: 900,
+        Animated.timing(typing, {
+          toValue: 0.4,
+          duration: 800,
           useNativeDriver: true,
         }),
-      ]),
+      ])
     ).start();
   }, []);
+
+  useEffect(() => {
+    Animated.spring(sendBtnScale, {
+      toValue: input.trim().length > 0 ? 1 : 0.95,
+      useNativeDriver: true,
+    }).start();
+  }, [input]);
 
   const sendMessage = () => {
     if (!input.trim()) return;
 
-    const userMessage = {
+    const userMsg = {
       id: Date.now().toString(),
       sender: "user",
       text: input,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
-
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
 
     setTimeout(() => {
@@ -73,98 +77,91 @@ export default function AbibekaChatScreen() {
         {
           id: Date.now().toString(),
           sender: "ai",
-          text: "Thank you for sharing that with me. Tell me more.",
+          text: "Got it. Tell me more about that 👀",
         },
       ]);
-    }, 1000);
+    }, 800);
   };
 
-  const renderMessage = ({ item }: any) => {
+  const renderMessage = ({ item }) => {
     const isUser = item.sender === "user";
 
     return (
-      <View
-        style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}
-      >
-        <Text style={styles.bubbleText}>{item.text}</Text>
+      <View style={[styles.messageRow, isUser ? styles.userRow : styles.aiRow]}>
+        {!isUser && (
+          <View style={styles.miniAvatar}>
+            <Text style={styles.miniAvatarText}>A</Text>
+          </View>
+        )}
+        <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
+          <Text style={[styles.msgText, isUser ? styles.userMsgText : styles.aiMsgText]}>
+            {item.text}
+          </Text>
+        </View>
       </View>
     );
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* HEADER */}
-
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>🤖 Abibeka AI</Text>
-
-          <View style={styles.statusRow}>
-            <Animated.View
-              style={[
-                styles.liveDot,
-                {
-                  opacity: pulse,
-                },
-              ]}
-            />
-
-            <Text style={styles.statusText}>Always Available</Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
+        {/* HEADER */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>A</Text>
+              </View>
+              <Animated.View style={[styles.onlineIndicator, { opacity: typing }]} />
+            </View>
+            <View>
+              <Text style={styles.title}>Abibeka AI</Text>
+              <Text style={styles.status}>Enterprise Assistant</Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      {/* INSIGHT CARD */}
-
-      <View style={styles.insightCard}>
-        <Text style={styles.insightTitle}>Today's Insight</Text>
-
-        <Text style={styles.insightText}>
-          Your stress appears lower than yesterday. Keep going 💚
-        </Text>
-      </View>
-
-      {/* CHAT */}
-
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingBottom: 20,
-        }}
-      />
-
-      {/* QUICK MOODS */}
-
-      <View style={styles.quickMoodRow}>
-        {["😊", "😌", "😤", "😔", "😰"].map((m) => (
-          <TouchableOpacity
-            key={m}
-            style={styles.moodChip}
-            onPress={() => setInput(m)}
-          >
-            <Text style={{ fontSize: 20 }}>{m}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* INPUT */}
-
-      <View style={styles.inputRow}>
-        <TextInput
-          value={input}
-          onChangeText={setInput}
-          placeholder="Talk to Abibeka..."
-          placeholderTextColor={BRAND.muted}
-          style={styles.input}
+        {/* CHAT PLATFORM */}
+        <FlatList
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessage}
+          contentContainerStyle={styles.chat}
+          showsVerticalScrollIndicator={false}
         />
 
-        <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
-          <Text style={styles.sendText}>➜</Text>
-        </TouchableOpacity>
-      </View>
+        {/* COMPACT INPUT BAR */}
+        <View style={styles.inputContainer}>
+          <View style={styles.inputBar}>
+            <TextInput
+              value={input}
+              onChangeText={setInput}
+              placeholder="Ask me anything..."
+              placeholderTextColor={BRAND.textMuted}
+              style={styles.input}
+              multiline={false}
+            />
+
+            <Animated.View style={{ transform: [{ scale: sendBtnScale }] }}>
+              <TouchableOpacity
+                onPress={sendMessage}
+                activeOpacity={0.7}
+                style={[
+                  styles.send,
+                  { backgroundColor: input.trim() ? BRAND.primary : "rgba(255,255,255,0.04)" },
+                ]}
+              >
+                <Text style={[styles.sendIcon, { color: input.trim() ? "#FFF" : BRAND.textMuted }]}>
+                  ↑
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -175,126 +172,163 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND.bg,
   },
 
+  /* HEADER */
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: BRAND.border,
+    backgroundColor: BRAND.bg,
   },
-
-  headerTitle: {
-    color: BRAND.text,
-    fontSize: 24,
-    fontWeight: "800",
-  },
-
-  statusRow: {
+  headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 6,
+    gap: 14,
   },
-
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: BRAND.accent,
-    marginRight: 6,
+  avatarContainer: {
+    position: "relative",
   },
-
-  statusText: {
-    color: BRAND.muted,
-    fontSize: 12,
-  },
-
-  insightCard: {
-    marginHorizontal: 20,
-    marginBottom: 15,
-    padding: 16,
-    borderRadius: 18,
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     backgroundColor: BRAND.card,
     borderWidth: 1,
     borderColor: BRAND.border,
+    alignItems: "center",
+    justifyContent: "center",
   },
-
-  insightTitle: {
+  avatarText: {
     color: BRAND.primary,
     fontWeight: "700",
-    marginBottom: 8,
+    fontSize: 18,
   },
-
-  insightText: {
+  onlineIndicator: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: BRAND.accent,
+    borderWidth: 2,
+    borderColor: BRAND.bg,
+  },
+  title: {
     color: BRAND.text,
-    lineHeight: 20,
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: 0.2,
+  },
+  status: {
+    color: BRAND.textMuted,
+    fontSize: 12,
+    marginTop: 2,
   },
 
-  bubble: {
-    maxWidth: "80%",
-    padding: 14,
-    borderRadius: 18,
-    marginVertical: 6,
+  /* CHAT LAYOUT */
+  chat: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 110,
   },
-
-  aiBubble: {
-    alignSelf: "flex-start",
-    backgroundColor: BRAND.card,
-    borderWidth: 1,
-    borderColor: BRAND.border,
-  },
-
-  userBubble: {
-    alignSelf: "flex-end",
-    backgroundColor: BRAND.primary,
-  },
-
-  bubbleText: {
-    color: "#fff",
-    lineHeight: 20,
-  },
-
-  quickMoodRow: {
+  messageRow: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 10,
-  },
-
-  moodChip: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: BRAND.card,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: BRAND.border,
-  },
-
-  inputRow: {
-    flexDirection: "row",
-    padding: 20,
+    alignItems: "flex-end",
+    marginVertical: 8,
     gap: 10,
   },
-
-  input: {
-    flex: 1,
+  userRow: {
+    justifyContent: "flex-end",
+  },
+  aiRow: {
+    justifyContent: "flex-start",
+  },
+  miniAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     backgroundColor: BRAND.card,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    color: BRAND.text,
     borderWidth: 1,
     borderColor: BRAND.border,
-  },
-
-  sendBtn: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
-    backgroundColor: BRAND.primary,
     alignItems: "center",
     justifyContent: "center",
   },
+  miniAvatarText: {
+    color: BRAND.textMuted,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  bubble: {
+    maxWidth: "80%",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+  },
+  aiBubble: {
+    backgroundColor: BRAND.card,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    borderBottomLeftRadius: 4,
+  },
+  userBubble: {
+    backgroundColor: BRAND.primary,
+    borderBottomRightRadius: 4,
+  },
+  msgText: {
+    fontSize: 15,
+    lineHeight: 22,
+    letterSpacing: 0.1,
+  },
+  aiMsgText: {
+    color: BRAND.text,
+    fontWeight: "400",
+  },
+  userMsgText: {
+    color: "#FFFFFF",
+    fontWeight: "500",
+  },
 
-  sendText: {
-    color: "#fff",
+  /* BOTTOM INPUT COMPONENT */
+  inputContainer: {
+    position: "absolute",
+    bottom: Platform.OS === "ios" ? 10 : 100,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    backgroundColor: "transparent",
+  },
+  inputBar: {
+    flexDirection: "row",
+    backgroundColor: BRAND.card,
+    borderRadius: 16,
+    padding: 6,
+    paddingLeft: 16,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  input: {
+    flex: 1,
+    color: BRAND.text,
+    fontSize: 15,
+    paddingVertical: 8,
+  },
+  send: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sendIcon: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "600",
+    lineHeight: 20,
   },
 });
