@@ -230,13 +230,11 @@ const InputField = ({
 interface LoginScreenProps {
   onLogin?: () => void;
   onForgotPass?: () => void;
-  onSignUp?: () => void;
 }
 
 export default function LoginScreen({
   onLogin,
   onForgotPass,
-  onSignUp,
 }: LoginScreenProps) {
   const navigation = useNavigation();
   const [email, setEmail] = useState("");
@@ -258,127 +256,52 @@ export default function LoginScreen({
   const footerAnim = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
 
+  // Clean Navigation trigger handler
+  const handleSignUpRedirect = () => {
+    // Note: Double check that your Router navigator explicitly names this path exactly "SignUp"
+    navigation.navigate("SignUp");
+  };
+
   useEffect(() => {
     Animated.stagger(70, [
-      Animated.spring(logoAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 11,
-        useNativeDriver: true,
-      }),
-      Animated.spring(headAnim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(langAnim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(cardAnim, {
-        toValue: 1,
-        tension: 45,
-        friction: 13,
-        useNativeDriver: true,
-      }),
-      Animated.spring(f1Anim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(f2Anim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(forgotAnim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(btnAnim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(metaAnim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(footerAnim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
+      Animated.spring(logoAnim, { toValue: 1, tension: 50, friction: 11, useNativeDriver: true }),
+      Animated.spring(headAnim, { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(langAnim, { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(cardAnim, { toValue: 1, tension: 45, friction: 13, useNativeDriver: true }),
+      Animated.spring(f1Anim, { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(f2Anim, { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(forgotAnim, { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(btnAnim, { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(metaAnim, { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(footerAnim, { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
     ]).start();
   }, []);
 
   const handleLogin = () => {
     Animated.sequence([
-      Animated.spring(btnScale, {
-        toValue: 0.96,
-        tension: 300,
-        friction: 10,
-        useNativeDriver: true,
-      }),
-      Animated.spring(btnScale, {
-        toValue: 1,
-        tension: 300,
-        friction: 10,
-        useNativeDriver: true,
-      }),
+      Animated.spring(btnScale, { toValue: 0.96, tension: 300, friction: 10, useNativeDriver: true }),
+      Animated.spring(btnScale, { toValue: 1, tension: 300, friction: 10, useNativeDriver: true }),
     ]).start(() => setAuthenticated(true));
     setUserRole("USER");
   };
 
-  const logoY = logoAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-24, 0],
-  });
-  const cardY = cardAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [32, 0],
-  });
-  const headY = headAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [12, 0],
-  });
+  const logoY = logoAnim.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] });
+  const cardY = cardAnim.interpolate({ inputRange: [0, 1], outputRange: [32, 0] });
+  const headY = headAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
 
   return (
     <View style={styles.root}>
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="light-content"
-      />
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
       <SafeAreaView style={{ flex: 1 }}>
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <ScrollView
             contentContainerStyle={styles.scroll}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
             {/* Logo + wordmark */}
-            <Animated.View
-              style={[
-                styles.logoBlock,
-                { opacity: logoAnim, transform: [{ translateY: logoY }] },
-              ]}
-            >
+            <Animated.View style={[styles.logoBlock, { opacity: logoAnim, transform: [{ translateY: logoY }] }]}>
               <BrandLogo size={60} />
               <View style={{ marginLeft: 14 }}>
                 <Text style={styles.wordmark}>Abibeka</Text>
@@ -387,107 +310,64 @@ export default function LoginScreen({
             </Animated.View>
 
             {/* Page heading */}
-            <Animated.View
-              style={[
-                { opacity: headAnim, transform: [{ translateY: headY }] },
-                { marginBottom: 20 },
-              ]}
-            >
+            <Animated.View style={[{ opacity: headAnim, transform: [{ translateY: headY }] }, { marginBottom: 20 }]}>
               <Text style={styles.pageTitle}>Welcome back</Text>
               <Text style={styles.pageSub}>Sign in to your account</Text>
             </Animated.View>
 
             {/* Language selector */}
-            <LangSelector
-              selected={lang}
-              onSelect={setLang}
-              enterAnim={langAnim}
-            />
+            <LangSelector selected={lang} onSelect={setLang} enterAnim={langAnim} />
 
-            {/* Card */}
-            <Animated.View
-              style={[
-                styles.card,
-                { opacity: cardAnim, transform: [{ translateY: cardY }] },
-              ]}
-            >
-              {/* Teal left border accent */}
+            {/* Card Frame */}
+            <Animated.View style={[styles.card, { opacity: cardAnim, transform: [{ translateY: cardY }] }]}>
               <View style={styles.cardLeftAccent} />
 
-              {/* Badge */}
               <View style={styles.badge}>
                 <View style={styles.badgeDot} />
                 <Text style={styles.badgeText}>Protected Session</Text>
               </View>
 
               <Text style={styles.cardTitle}>Sign In</Text>
-              <Text style={styles.cardSub}>
-                Continue your wellness journey securely.
-              </Text>
+              <Text style={styles.cardSub}>Continue your wellness journey securely.</Text>
 
-              {/* Fields */}
+              {/* Input Fields */}
               <View style={{ marginTop: 24 }}>
-                <InputField
-                  label="Email Address"
-                  value={email}
-                  onChangeText={setEmail}
-                  icon="✉"
-                  enterAnim={f1Anim}
-                />
-                <InputField
-                  label="Password"
-                  value={password}
-                  onChangeText={setPassword}
-                  icon="⚿"
-                  secure
-                  enterAnim={f2Anim}
-                />
+                <InputField label="Email Address" value={email} onChangeText={setEmail} icon="✉" enterAnim={f1Anim} />
+                <InputField label="Password" value={password} onChangeText={setPassword} icon="⚿" secure enterAnim={f2Anim} />
               </View>
 
-              {/* Forgot */}
-              <Animated.View
-                style={[styles.forgotRow, { opacity: forgotAnim }]}
-              >
+              {/* Forgot Password Row */}
+              <Animated.View style={[styles.forgotRow, { opacity: forgotAnim }]}>
                 <Pressable onPress={onForgotPass} hitSlop={10}>
                   <Text style={styles.forgotText}>Forgot password?</Text>
                 </Pressable>
               </Animated.View>
 
-              {/* Button */}
-              <Animated.View
-                style={{ opacity: btnAnim, transform: [{ scale: btnScale }] }}
-              >
-                <TouchableOpacity
-                  onPress={handleLogin}
-                  activeOpacity={0.88}
-                  style={styles.btn}
-                >
+              {/* Submit Trigger Action */}
+              <Animated.View style={{ opacity: btnAnim, transform: [{ scale: btnScale }] }}>
+                <TouchableOpacity onPress={handleLogin} activeOpacity={0.88} style={styles.btn}>
                   <Text style={styles.btnText}>Sign In</Text>
                   <View style={styles.btnDot} />
                 </TouchableOpacity>
               </Animated.View>
 
-              {/* Meta */}
+              {/* Security Meta Row */}
               <Animated.View style={[styles.metaRow, { opacity: metaAnim }]}>
                 <View style={styles.metaItem}>
-                  <View
-                    style={[styles.metaDot, { backgroundColor: BRAND.accent }]}
-                  />
+                  <View style={[styles.metaDot, { backgroundColor: BRAND.accent }]} />
                   <Text style={styles.metaText}>End-to-end encrypted</Text>
                 </View>
                 <View style={styles.metaItem}>
-                  <View
-                    style={[styles.metaDot, { backgroundColor: BRAND.primary }]}
-                  />
+                  <View style={[styles.metaDot, { backgroundColor: BRAND.primary }]} />
                   <Text style={styles.metaText}>Anonymous identity</Text>
                 </View>
               </Animated.View>
             </Animated.View>
 
-            {/* Footer */}
+            {/* Account Switch Redirect Link Footer */}
             <Animated.View style={[styles.footer, { opacity: footerAnim }]}>
               <Text style={styles.footerText}>New to Abibeka?</Text>
-              <Pressable onPress={onSignUp} hitSlop={10}>
+              <Pressable onPress={handleSignUpRedirect} hitSlop={12}>
                 <Text style={styles.footerLink}> Create account</Text>
               </Pressable>
             </Animated.View>
@@ -498,8 +378,7 @@ export default function LoginScreen({
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
+// ─── Layout Styling Elements ─────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BRAND.bg },
   scroll: {
@@ -508,28 +387,11 @@ const styles = StyleSheet.create({
     paddingTop: 28,
     paddingBottom: 40,
   },
-
-  // Logo
   logoBlock: { flexDirection: "row", alignItems: "center", marginBottom: 32 },
-  wordmark: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: BRAND.text,
-    letterSpacing: -0.5,
-  },
+  wordmark: { fontSize: 22, fontWeight: "800", color: BRAND.text, letterSpacing: -0.5 },
   wordmarkSub: { fontSize: 11, color: BRAND.muted, marginTop: 2 },
-
-  // Heading
-  pageTitle: {
-    fontSize: 30,
-    fontWeight: "800",
-    color: BRAND.text,
-    letterSpacing: -0.8,
-    marginBottom: 4,
-  },
+  pageTitle: { fontSize: 30, fontWeight: "800", color: BRAND.text, letterSpacing: -0.8, marginBottom: 4 },
   pageSub: { fontSize: 14, color: BRAND.muted },
-
-  // Language
   langRow: { flexDirection: "row", gap: 10, marginBottom: 24 },
   langPill: {
     flexDirection: "row",
@@ -542,15 +404,10 @@ const styles = StyleSheet.create({
     borderColor: BRAND.border,
     backgroundColor: "rgba(255,255,255,0.03)",
   },
-  langPillActive: {
-    borderColor: BRAND.primary,
-    backgroundColor: "rgba(15,118,110,0.12)",
-  },
+  langPillActive: { borderColor: BRAND.primary, backgroundColor: "rgba(15,118,110,0.12)" },
   langFlag: { fontSize: 14 },
   langLabel: { fontSize: 12, fontWeight: "600", color: BRAND.muted },
   langLabelActive: { color: BRAND.primary },
-
-  // Card
   card: {
     backgroundColor: BRAND.card,
     borderRadius: 24,
@@ -559,10 +416,7 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingLeft: 28,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowRadius: 30,
-    shadowOpacity: 0.4,
-    shadowOffset: { width: 0, height: 8 },
+    zIndex: 1,
   },
   cardLeftAccent: {
     position: "absolute",
@@ -574,8 +428,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderBottomLeftRadius: 24,
   },
-
-  // Badge
   badge: {
     flexDirection: "row",
     alignItems: "center",
@@ -588,55 +440,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15,118,110,0.1)",
     marginBottom: 20,
   },
-  badgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: BRAND.accent,
-    marginRight: 7,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: BRAND.primary,
-    letterSpacing: 0.3,
-  },
-
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: BRAND.text,
-    letterSpacing: -0.5,
-    marginBottom: 4,
-  },
+  badgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: BRAND.accent, marginRight: 7 },
+  badgeText: { fontSize: 11, fontWeight: "700", color: BRAND.primary, letterSpacing: 0.3 },
+  cardTitle: { fontSize: 24, fontWeight: "800", color: BRAND.text, letterSpacing: -0.5, marginBottom: 4 },
   cardSub: { fontSize: 13, color: BRAND.muted, lineHeight: 20 },
-
-  // Inputs
-  inputLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.4)",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginBottom: 8,
-  },
-  inputWrap: {
-    height: 56,
-    borderRadius: 14,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-  },
+  inputLabel: { fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.4)", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 },
+  inputWrap: { height: 56, borderRadius: 14, borderWidth: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: 14 },
   inputIcon: { fontSize: 15, marginRight: 10 },
   input: { flex: 1, fontSize: 15, color: BRAND.text },
   showText: { fontSize: 11, fontWeight: "700", color: BRAND.primary },
-
-  // Forgot
   forgotRow: { alignSelf: "flex-end", marginTop: 4, marginBottom: 24 },
   forgotText: { fontSize: 13, color: BRAND.primary, fontWeight: "600" },
-
-  // Button — flat, no gradient
   btn: {
     height: 56,
     borderRadius: 16,
@@ -644,26 +458,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: BRAND.primary,
-    shadowRadius: 16,
-    shadowOpacity: 0.4,
-    shadowOffset: { width: 0, height: 4 },
   },
-  btnText: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#fff",
-    letterSpacing: 0.2,
-  },
-  btnDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 99,
-    backgroundColor: BRAND.accent,
-    marginLeft: 10,
-  },
-
-  // Meta
+  btnText: { fontSize: 16, fontWeight: "800", color: "#fff", letterSpacing: 0.2 },
+  btnDot: { width: 7, height: 7, borderRadius: 99, backgroundColor: BRAND.accent, marginLeft: 10 },
   metaRow: {
     flexDirection: "row",
     gap: 20,
@@ -675,13 +472,12 @@ const styles = StyleSheet.create({
   metaItem: { flexDirection: "row", alignItems: "center" },
   metaDot: { width: 5, height: 5, borderRadius: 99, marginRight: 6 },
   metaText: { fontSize: 11, color: "rgba(255,255,255,0.28)" },
-
-  // Footer
   footer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 28,
+    paddingVertical: 24,
+    zIndex: 10,
   },
   footerText: { fontSize: 13, color: BRAND.muted },
   footerLink: { fontSize: 13, fontWeight: "800", color: BRAND.primary },
