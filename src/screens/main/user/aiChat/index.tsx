@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,12 +12,12 @@ import {
   Dimensions,
   StatusBar,
   SafeAreaView,
-} from 'react-native';
+} from "react-native";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Role = 'user' | 'ai';
+type Role = "user" | "ai";
 
 interface Message {
   id: string;
@@ -37,10 +37,18 @@ const TypingIndicator: React.FC = () => {
       Animated.loop(
         Animated.sequence([
           Animated.delay(delay),
-          Animated.timing(dot, { toValue: -6, duration: 300, useNativeDriver: true }),
-          Animated.timing(dot, { toValue: 0, duration: 300, useNativeDriver: true }),
+          Animated.timing(dot, {
+            toValue: -6,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(dot, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
           Animated.delay(600),
-        ])
+        ]),
       );
 
     Animated.parallel([
@@ -98,10 +106,10 @@ const MessageBubble: React.FC<{ message: Message; index: number }> = ({
     ]).start();
   }, []);
 
-  const isUser = message.role === 'user';
+  const isUser = message.role === "user";
   const timeStr = message.timestamp.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
+    hour: "2-digit",
+    minute: "2-digit",
   });
 
   return (
@@ -122,13 +130,30 @@ const MessageBubble: React.FC<{ message: Message; index: number }> = ({
         </View>
       )}
 
-      <View style={[styles.bubbleWrapper, isUser ? styles.bubbleWrapperUser : styles.bubbleWrapperAi]}>
-        <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAi]}>
-          <Text style={[styles.bubbleText, isUser ? styles.bubbleTextUser : styles.bubbleTextAi]}>
+      <View
+        style={[
+          styles.bubbleWrapper,
+          isUser ? styles.bubbleWrapperUser : styles.bubbleWrapperAi,
+        ]}
+      >
+        <View
+          style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAi]}
+        >
+          <Text
+            style={[
+              styles.bubbleText,
+              isUser ? styles.bubbleTextUser : styles.bubbleTextAi,
+            ]}
+          >
             {message.text}
           </Text>
         </View>
-        <Text style={[styles.timestamp, isUser ? styles.timestampUser : styles.timestampAi]}>
+        <Text
+          style={[
+            styles.timestamp,
+            isUser ? styles.timestampUser : styles.timestampAi,
+          ]}
+        >
           {timeStr}
         </Text>
       </View>
@@ -150,11 +175,19 @@ const SendButton: React.FC<{ onPress: () => void; disabled: boolean }> = ({
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
-    Animated.spring(scaleAnim, { toValue: 0.88, useNativeDriver: true, tension: 200 }).start();
+    Animated.spring(scaleAnim, {
+      toValue: 0.88,
+      useNativeDriver: true,
+      tension: 200,
+    }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 200 }).start();
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 200,
+    }).start();
     if (!disabled) onPress();
   };
 
@@ -180,13 +213,15 @@ const SendButton: React.FC<{ onPress: () => void; disabled: boolean }> = ({
 
 // ─── Quick Suggestions ────────────────────────────────────────────────────────
 const SUGGESTIONS = [
-  'Tell me something interesting',
-  'Help me brainstorm ideas',
-  'Write a short poem',
-  'Explain quantum computing',
+  "Tell me something interesting",
+  "Help me brainstorm ideas",
+  "Write a short poem",
+  "Explain quantum computing",
 ];
 
-const QuickSuggestions: React.FC<{ onSelect: (text: string) => void }> = ({ onSelect }) => (
+const QuickSuggestions: React.FC<{ onSelect: (text: string) => void }> = ({
+  onSelect,
+}) => (
   <View style={styles.suggestionsContainer}>
     <Text style={styles.suggestionsLabel}>Try asking…</Text>
     <View style={styles.suggestionsRow}>
@@ -206,19 +241,24 @@ const QuickSuggestions: React.FC<{ onSelect: (text: string) => void }> = ({ onSe
 
 // ─── Mock AI Response ─────────────────────────────────────────────────────────
 const AI_RESPONSES: Record<string, string> = {
-  default: "That's a fascinating question! I'd love to explore this topic with you further. What aspect interests you most?",
-  hello: "Hello! I'm Abibeka, your AI companion. I'm here to think, create, and explore ideas with you. What's on your mind?",
+  default:
+    "That's a fascinating question! I'd love to explore this topic with you further. What aspect interests you most?",
+  hello:
+    "Hello! I'm Abibeka, your AI companion. I'm here to think, create, and explore ideas with you. What's on your mind?",
   poem: "Here's one for you:\n\n*Words fall like rain at dusk,\nSilver threads on quiet glass—\nThoughts become the husk.*",
-  quantum: "Quantum computing harnesses quantum mechanics — superposition and entanglement — to process information in fundamentally different ways than classical computers. Instead of bits (0 or 1), it uses qubits that can exist in multiple states simultaneously, enabling certain calculations at extraordinary speed.",
-  brainstorm: "Great! Let's ideate. What's the domain? A product, a story, a solution to a problem? Give me a seed and I'll help you grow a forest of ideas.",
+  quantum:
+    "Quantum computing harnesses quantum mechanics — superposition and entanglement — to process information in fundamentally different ways than classical computers. Instead of bits (0 or 1), it uses qubits that can exist in multiple states simultaneously, enabling certain calculations at extraordinary speed.",
+  brainstorm:
+    "Great! Let's ideate. What's the domain? A product, a story, a solution to a problem? Give me a seed and I'll help you grow a forest of ideas.",
 };
 
 const getMockResponse = (input: string): string => {
   const lower = input.toLowerCase();
-  if (lower.includes('hello') || lower.includes('hi')) return AI_RESPONSES.hello;
-  if (lower.includes('poem')) return AI_RESPONSES.poem;
-  if (lower.includes('quantum')) return AI_RESPONSES.quantum;
-  if (lower.includes('brainstorm')) return AI_RESPONSES.brainstorm;
+  if (lower.includes("hello") || lower.includes("hi"))
+    return AI_RESPONSES.hello;
+  if (lower.includes("poem")) return AI_RESPONSES.poem;
+  if (lower.includes("quantum")) return AI_RESPONSES.quantum;
+  if (lower.includes("brainstorm")) return AI_RESPONSES.brainstorm;
   return AI_RESPONSES.default;
 };
 
@@ -229,9 +269,17 @@ const ChatHeader: React.FC = () => {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.35, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
-      ])
+        Animated.timing(pulseAnim, {
+          toValue: 1.35,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+      ]),
     ).start();
   }, []);
 
@@ -263,13 +311,13 @@ const ChatHeader: React.FC = () => {
 const AbibekaChatScreen: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: '0',
-      role: 'ai',
+      id: "0",
+      role: "ai",
       text: "Hi there! I'm Abibeka. Ask me anything — I'm here to help, create, and explore with you.",
       timestamp: new Date(),
     },
   ]);
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
@@ -278,8 +326,17 @@ const AbibekaChatScreen: React.FC = () => {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(headerOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.spring(headerSlide, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
+      Animated.timing(headerOpacity, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.spring(headerSlide, {
+        toValue: 0,
+        tension: 80,
+        friction: 12,
+        useNativeDriver: true,
+      }),
     ]).start();
   }, []);
 
@@ -289,36 +346,39 @@ const AbibekaChatScreen: React.FC = () => {
     }, 100);
   }, []);
 
-  const sendMessage = useCallback(async (text?: string) => {
-    const content = (text ?? inputText).trim();
-    if (!content) return;
+  const sendMessage = useCallback(
+    async (text?: string) => {
+      const content = (text ?? inputText).trim();
+      if (!content) return;
 
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      text: content,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    setInputText('');
-    setIsTyping(true);
-    scrollToBottom();
-
-    // Simulate AI thinking delay
-    const delay = 1200 + Math.random() * 1000;
-    setTimeout(() => {
-      const aiMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'ai',
-        text: getMockResponse(content),
+      const userMsg: Message = {
+        id: Date.now().toString(),
+        role: "user",
+        text: content,
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, aiMsg]);
-      setIsTyping(false);
+
+      setMessages((prev) => [...prev, userMsg]);
+      setInputText("");
+      setIsTyping(true);
       scrollToBottom();
-    }, delay);
-  }, [inputText]);
+
+      // Simulate AI thinking delay
+      const delay = 1200 + Math.random() * 1000;
+      setTimeout(() => {
+        const aiMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "ai",
+          text: getMockResponse(content),
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+        setIsTyping(false);
+        scrollToBottom();
+      }, delay);
+    },
+    [inputText],
+  );
 
   const showSuggestions = messages.length <= 1 && !isTyping;
 
@@ -343,8 +403,8 @@ const AbibekaChatScreen: React.FC = () => {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <FlatList
           ref={flatListRef}
@@ -387,7 +447,9 @@ const AbibekaChatScreen: React.FC = () => {
               disabled={!inputText.trim() || isTyping}
             />
           </View>
-          <Text style={styles.inputHint}>Abibeka can make mistakes. Verify important info.</Text>
+          <Text style={styles.inputHint}>
+            Abibeka can make mistakes. Verify important info.
+          </Text>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -395,19 +457,19 @@ const AbibekaChatScreen: React.FC = () => {
 };
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const ACCENT = '#7c6aff';
-const ACCENT2 = '#ff6ac1';
-const BG = '#0a0a0f';
-const SURFACE = '#13131f';
-const SURFACE2 = '#1c1c2e';
-const TEXT = '#eeeef5';
-const TEXT_MUTED = '#6b6b8a';
+const ACCENT = "#7c6aff";
+const ACCENT2 = "#ff6ac1";
+const BG = "#0a0a0f";
+const SURFACE = "#13131f";
+const SURFACE2 = "#1c1c2e";
+const TEXT = "#eeeef5";
+const TEXT_MUTED = "#6b6b8a";
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: BG,
-    paddingTop: 23
+    paddingTop: 23,
   },
   flex: { flex: 1 },
 
@@ -418,23 +480,23 @@ const styles = StyleSheet.create({
   },
   bgLayer2: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(124, 106, 255, 0.03)',
+    backgroundColor: "rgba(124, 106, 255, 0.03)",
   },
   bgOrb1: {
-    position: 'absolute',
+    position: "absolute",
     width: 320,
     height: 320,
     borderRadius: 160,
-    backgroundColor: 'rgba(124,106,255,0.07)',
+    backgroundColor: "rgba(124,106,255,0.07)",
     top: -80,
     right: -80,
   },
   bgOrb2: {
-    position: 'absolute',
+    position: "absolute",
     width: 240,
     height: 240,
     borderRadius: 120,
-    backgroundColor: 'rgba(255,106,193,0.05)',
+    backgroundColor: "rgba(255,106,193,0.05)",
     bottom: 200,
     left: -60,
   },
@@ -442,32 +504,32 @@ const styles = StyleSheet.create({
   // Header
   container: { zIndex: 10 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: 'rgba(10,10,15,0.95)',
+    borderBottomColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(10,10,15,0.95)",
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
   headerAvatar: {
     width: 42,
     height: 42,
     borderRadius: 21,
     backgroundColor: ACCENT,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
   },
-  headerAvatarText: { color: '#fff', fontWeight: '700', fontSize: 17 },
+  headerAvatarText: { color: "#fff", fontWeight: "700", fontSize: 17 },
   headerOnlineDot: {
-    position: 'absolute',
+    position: "absolute",
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#4ade80',
+    backgroundColor: "#4ade80",
     bottom: 1,
     right: 1,
     borderWidth: 2,
@@ -476,7 +538,7 @@ const styles = StyleSheet.create({
   headerName: {
     color: TEXT,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.3,
   },
   headerStatus: {
@@ -489,8 +551,8 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: SURFACE2,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerMenuIcon: { color: TEXT_MUTED, fontSize: 18, lineHeight: 20 },
 
@@ -502,16 +564,16 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   messageRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    flexDirection: "row",
+    alignItems: "flex-end",
     marginVertical: 4,
     gap: 8,
   },
-  messageRowUser: { justifyContent: 'flex-end' },
-  messageRowAi: { justifyContent: 'flex-start' },
+  messageRowUser: { justifyContent: "flex-end" },
+  messageRowAi: { justifyContent: "flex-start" },
   bubbleWrapper: { maxWidth: width * 0.72 },
-  bubbleWrapperUser: { alignItems: 'flex-end' },
-  bubbleWrapperAi: { alignItems: 'flex-start' },
+  bubbleWrapperUser: { alignItems: "flex-end" },
+  bubbleWrapperAi: { alignItems: "flex-start" },
   bubble: {
     borderRadius: 20,
     paddingHorizontal: 16,
@@ -525,14 +587,14 @@ const styles = StyleSheet.create({
     backgroundColor: SURFACE2,
     borderBottomLeftRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(124,106,255,0.15)',
+    borderColor: "rgba(124,106,255,0.15)",
   },
   bubbleText: { fontSize: 15, lineHeight: 22 },
-  bubbleTextUser: { color: '#fff' },
+  bubbleTextUser: { color: "#fff" },
   bubbleTextAi: { color: TEXT },
   timestamp: { fontSize: 10, marginTop: 4, color: TEXT_MUTED },
-  timestampUser: { textAlign: 'right' },
-  timestampAi: { textAlign: 'left' },
+  timestampUser: { textAlign: "right" },
+  timestampAi: { textAlign: "left" },
 
   // Avatar
   avatar: {
@@ -540,58 +602,58 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 17,
     backgroundColor: ACCENT,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 18,
   },
   avatarPulse: {
-    position: 'absolute',
+    position: "absolute",
     width: 34,
     height: 34,
     borderRadius: 17,
     borderWidth: 2,
-    borderColor: 'rgba(124,106,255,0.4)',
+    borderColor: "rgba(124,106,255,0.4)",
   },
   avatarUser: {
     width: 34,
     height: 34,
     borderRadius: 17,
     backgroundColor: SURFACE2,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: "rgba(255,255,255,0.1)",
   },
-  avatarText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  avatarText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   avatarSmall: {
     width: 28,
     height: 28,
     borderRadius: 14,
     backgroundColor: ACCENT,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
-  avatarSmallText: { color: '#fff', fontWeight: '700', fontSize: 11 },
+  avatarSmallText: { color: "#fff", fontWeight: "700", fontSize: 11 },
 
   // Typing indicator
   typingBubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
     paddingHorizontal: 16,
     marginVertical: 8,
   },
   dotRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 5,
     backgroundColor: SURFACE2,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: 'rgba(124,106,255,0.15)',
+    borderColor: "rgba(124,106,255,0.15)",
   },
   dot: {
     width: 7,
@@ -606,17 +668,17 @@ const styles = StyleSheet.create({
     color: TEXT_MUTED,
     fontSize: 12,
     letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     marginBottom: 10,
   },
-  suggestionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  suggestionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   suggestionChip: {
     backgroundColor: SURFACE2,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: 'rgba(124,106,255,0.25)',
+    borderColor: "rgba(124,106,255,0.25)",
   },
   suggestionText: { color: TEXT, fontSize: 13 },
 
@@ -624,22 +686,22 @@ const styles = StyleSheet.create({
   inputBar: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
-    backgroundColor: 'rgba(10,10,15,0.97)',
+    paddingBottom: Platform.OS === "ios" ? 24 : 16,
+    backgroundColor: "rgba(10,10,15,0.97)",
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    marginBottom: 100
+    borderTopColor: "rgba(255,255,255,0.06)",
+    marginBottom: 10,
   },
   inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    flexDirection: "row",
+    alignItems: "flex-end",
     backgroundColor: SURFACE2,
     borderRadius: 28,
     paddingLeft: 18,
     paddingRight: 6,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: 'rgba(124,106,255,0.2)',
+    borderColor: "rgba(124,106,255,0.2)",
     gap: 8,
   },
   input: {
@@ -656,16 +718,16 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 19,
     backgroundColor: ACCENT,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 2,
   },
   sendBtnDisabled: { backgroundColor: SURFACE, opacity: 0.5 },
-  sendIcon: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  sendIcon: { color: "#fff", fontSize: 18, fontWeight: "700" },
   inputHint: {
     color: TEXT_MUTED,
     fontSize: 11,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 8,
     opacity: 0.7,
   },
