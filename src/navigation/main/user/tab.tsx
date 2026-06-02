@@ -4,8 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import HomeScreen from "../../../screens/main/user/home";
 import AssessmentScreen from "../../../screens/main/user/assessmentScreen";
-import ForumRoot from "../../../screens/main/user/forum";
 import AbibekaChatScreen from "../../../screens/main/user/aiChat";
+import { ForumScreen } from "../../../screens/main/user/forum";
 
 const Tab = createBottomTabNavigator();
 
@@ -40,7 +40,7 @@ export default function UserTab() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Forum" component={ForumRoot} />
+      <Tab.Screen name="Forum" component={ForumScreen} />
       <Tab.Screen name="AI" component={AbibekaChatScreen} />
       <Tab.Screen name="Assessment" component={AssessmentScreen} />
     </Tab.Navigator>
@@ -49,10 +49,10 @@ export default function UserTab() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    right: 20,
+    // position: "absolute",
+    // bottom: 20,
+    // left: 20,
+    // right: 20,
     height: 65,
     borderRadius: 20,
     backgroundColor: "#050816",
