@@ -4,7 +4,7 @@ import { B, INITIAL_POSTS, MOOD_TAGS, ORG, Post } from "./constants/constant";
 import { DashboardTab } from "./components/DashTab";
 import { FeedTab, NewPostSheet } from "./components/FeedTab";
 
-// ─── Forum header ─────────────────────────────────────────────────────────────
+// ─── Forum header ─────────────────────────────────────────────────────────
 const ForumHeader = ({ activeToday }: { activeToday: number }) => (
   <View style={s.header}>
     <View style={{ flex: 1 }}>
@@ -50,9 +50,18 @@ const TabBar = ({
     <View style={s.tabWrap}>
       <View style={s.tabBar}>
         <Animated.View style={[s.indicator, { left: indicatorLeft }]} />
-        {(["feed", "dashboard"] as const).map(tab => (
-          <Pressable key={tab} onPress={() => handleSwitch(tab)} style={s.tabBtn}>
-            <Text style={[s.tabText, activeTab === tab && { color: B.text, fontWeight: "700" }]}>
+        {(["feed", "dashboard"] as const).map((tab) => (
+          <Pressable
+            key={tab}
+            onPress={() => handleSwitch(tab)}
+            style={s.tabBtn}
+          >
+            <Text
+              style={[
+                s.tabText,
+                activeTab === tab && { color: B.text, fontWeight: "700" },
+              ]}
+            >
               {tab === "feed" ? "💬 Feed" : "📊 Dashboard"}
             </Text>
           </Pressable>
@@ -64,27 +73,35 @@ const TabBar = ({
 
 // ─── ForumScreen ──────────────────────────────────────────────────────────────
 export const ForumScreen = () => {
-  const [posts,       setPosts]       = useState<Post[]>(INITIAL_POSTS);
-  const [activeTab,   setActiveTab]   = useState<"feed" | "dashboard">("feed");
+  const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
+  const [activeTab, setActiveTab] = useState<"feed" | "dashboard">("feed");
   const [showNewPost, setShowNewPost] = useState(false);
 
   const handleVote = (id: string, dir: "up" | "down") => {
-    setPosts(prev =>
-      prev.map(p => {
+    setPosts((prev) =>
+      prev.map((p) => {
         if (p.id !== id) return p;
         return {
           ...p,
-          upvotes:   dir === "up"   ? p.upvotes   + (p.userVote === "up"   ? -1 : 1) : p.upvotes   - (p.userVote === "up"   ? 1 : 0),
-          downvotes: dir === "down" ? p.downvotes + (p.userVote === "down" ? -1 : 1) : p.downvotes - (p.userVote === "down" ? 1 : 0),
-          userVote:  p.userVote === dir ? null : dir,
+          upvotes:
+            dir === "up"
+              ? p.upvotes + (p.userVote === "up" ? -1 : 1)
+              : p.upvotes - (p.userVote === "up" ? 1 : 0),
+          downvotes:
+            dir === "down"
+              ? p.downvotes + (p.userVote === "down" ? -1 : 1)
+              : p.downvotes - (p.userVote === "down" ? 1 : 0),
+          userVote: p.userVote === dir ? null : dir,
         };
-      })
+      }),
     );
   };
 
   const handlePost = (content: string, tag: string) => {
-    const tagData = MOOD_TAGS.find(t => t.label === tag) ?? { color: B.primary };
-    setPosts(prev => [
+    const tagData = MOOD_TAGS.find((t) => t.label === tag) ?? {
+      color: B.primary,
+    };
+    setPosts((prev) => [
       {
         id: String(Date.now()),
         avatar: "🦊",
@@ -103,12 +120,16 @@ export const ForumScreen = () => {
   };
 
   return (
-    <View style={{ flex: 1 , backgroundColor: B.bg, paddingTop: 23}}>
+    <View style={{ flex: 1, backgroundColor: B.bg, paddingTop: 23 }}>
       <ForumHeader activeToday={ORG.activeToday} />
       <TabBar activeTab={activeTab} onSwitch={setActiveTab} />
 
       {activeTab === "feed" ? (
-        <FeedTab posts={posts} onVote={handleVote} onNewPost={() => setShowNewPost(true)} />
+        <FeedTab
+          posts={posts}
+          onVote={handleVote}
+          onNewPost={() => setShowNewPost(true)}
+        />
       ) : (
         <DashboardTab />
       )}
@@ -116,7 +137,10 @@ export const ForumScreen = () => {
       {/* Backdrop */}
       {showNewPost && (
         <Pressable
-          style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.55)" }]}
+          style={[
+            StyleSheet.absoluteFillObject,
+            { backgroundColor: "rgba(0,0,0,0.55)" },
+          ]}
           onPress={() => setShowNewPost(false)}
         />
       )}
@@ -133,15 +157,63 @@ export const ForumScreen = () => {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  header:     { flexDirection: "row", alignItems: "center", paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: B.border },
-  title:      { fontSize: 22, fontWeight: "900", color: B.text, letterSpacing: -0.5, marginBottom: 2 },
-  orgLabel:   { fontSize: 12, color: B.muted },
-  activePill: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 20, backgroundColor: B.accent + "10", borderWidth: 1, borderColor: B.accent + "25" },
-  activeDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: B.accent },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: B.border,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: B.text,
+    letterSpacing: -0.5,
+    marginBottom: 2,
+  },
+  orgLabel: { fontSize: 12, color: B.muted },
+  activePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: B.accent + "10",
+    borderWidth: 1,
+    borderColor: B.accent + "25",
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: B.accent,
+  },
   activeText: { fontSize: 11, fontWeight: "700", color: B.accent },
-  tabWrap:    { paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: B.border },
-  tabBar:     { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 3, position: "relative" },
-  indicator:  { position: "absolute", top: 3, width: "47%", height: "100%", borderRadius: 11, backgroundColor: B.primary + "25", borderWidth: 1, borderColor: B.primary + "35" },
-  tabBtn:     { flex: 1, paddingVertical: 9, alignItems: "center" },
-  tabText:    { fontSize: 13, color: B.muted, fontWeight: "600" },
+  tabWrap: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: B.border,
+  },
+  tabBar: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderRadius: 14,
+    padding: 3,
+    position: "relative",
+  },
+  indicator: {
+    position: "absolute",
+    top: 3,
+    width: "47%",
+    height: "100%",
+    borderRadius: 11,
+    backgroundColor: B.primary + "25",
+    borderWidth: 1,
+    borderColor: B.primary + "35",
+  },
+  tabBtn: { flex: 1, paddingVertical: 9, alignItems: "center" },
+  tabText: { fontSize: 13, color: B.muted, fontWeight: "600" },
 });

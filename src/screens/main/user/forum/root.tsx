@@ -11,7 +11,11 @@ const HAS_ORGANIZATION = true;
 export default function ForumRoot() {
   return (
     <View style={{ flex: 1, backgroundColor: B.bg }}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="light-content"
+      />
       <SafeAreaView style={{ flex: 1 }}>
         {HAS_ORGANIZATION ? <ForumScreen /> : <NoOrgScreen />}
       </SafeAreaView>
