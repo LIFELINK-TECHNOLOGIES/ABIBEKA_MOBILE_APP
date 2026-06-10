@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "ABIKE",
-    "slug": "ABIKE",
+    "name": "ABIBEKA",
+    "slug": "ABIBEKA",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -21,10 +21,17 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.olamide00.ABIBEKA",
+      "minSdkVersion": 21
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3f9ffaec-6bc7-43d5-ae08-bc6dbf6e76d9"
+      }
     }
   }
 }
