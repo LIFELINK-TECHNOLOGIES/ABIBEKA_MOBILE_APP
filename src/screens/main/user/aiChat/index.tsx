@@ -690,7 +690,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(10,10,15,0.97)",
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.06)",
-    marginBottom: 10,
   },
   inputWrapper: {
     flexDirection: "row",

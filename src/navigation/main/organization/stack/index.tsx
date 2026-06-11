@@ -1,6 +1,5 @@
 import { createStackNavigator } from "@react-navigation/stack";
-import Home from "../../../../screens/organization/home";
-
+import Home from "../../../../screens/main/organization/home";
 
 
 const Stack = createStackNavigator();

@@ -1,6 +1,6 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
-import { B } from "../../../../constant/them";
+import { B } from "../../../../../constant/them";
 
 export default function Card({
   children,

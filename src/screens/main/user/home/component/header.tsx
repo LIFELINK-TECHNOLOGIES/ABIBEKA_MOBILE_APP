@@ -1,6 +1,6 @@
 import React from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
-import { B } from "../../../../constant/them";
+import { B } from "../../../../../constant/them";
 
 const HAS_CHECKED_IN = false;
 const STREAK = 7;

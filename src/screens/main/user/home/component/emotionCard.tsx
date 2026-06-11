@@ -2,7 +2,7 @@ import React from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path, Text as SvgText } from "react-native-svg";
 import Card from "./card";
-import { B, EMOTIONS } from "../../../../constant/them";
+import { B, EMOTIONS } from "../../../../../constant/them";
 
 export default function EmotionCard({ anim }: { anim: Animated.Value }) {
   const y = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });

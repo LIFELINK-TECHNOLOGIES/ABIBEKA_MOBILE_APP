@@ -2,12 +2,13 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import Home from "../../../../screens/main/organization/home";
+import JoinRequestsScreen from "../../../../screens/main/organization/request";
+import AbibekaChatScreen from "../../../../screens/main/user/aiChat";
+import AssignRoleScreen from "../../../../screens/main/organization/assignRole";
+import SolutionsForumScreen from "../../../../screens/main/organization/solution";
+import { ForumScreen } from "../../../../screens/main/user/forum";
 
-import Home from "../../../../screens/organization/home";
-import JoinRequestsScreen from "../../../../screens/organization/request";
-import AssignRoleScreen from "../../../../screens/organization/assignRole";
-import SolutionsForumScreen from "../../../../screens/organization/solution";
-import AbibekaChatScreen from "../../../../screens/user/aiChat";
 
 // ─── Tokens (matches all org screens) ────────────────────────────────────────
 const C = {
@@ -49,8 +50,8 @@ const TABS: TabItem[] = [
     icon: (a) => a ? '✦' : '✦',
   },
   {
-    name: 'Solution',
-    label: 'Board',
+    name: 'Forum',
+    label: 'Forum',
     icon: (a) => a ? '◎' : '◎',
   },
 ];
@@ -134,10 +135,10 @@ export default function OrganizationTab() {
       tabBar={(props) => <CustomTabBar {...props} />}
     >
       <Tab.Screen name="Home" component={Home} />
-      <Tab.Screen name="Request" component={JoinRequestsScreen} />
+      <Tab.Screen name="Forum" component={ForumScreen} />
       <Tab.Screen name="AI" component={AbibekaChatScreen} />
       <Tab.Screen name="Roles" component={AssignRoleScreen} />
-      <Tab.Screen name="Solution" component={SolutionsForumScreen} />
+      <Tab.Screen name="Request" component={JoinRequestsScreen} />
     </Tab.Navigator>
   );
 }

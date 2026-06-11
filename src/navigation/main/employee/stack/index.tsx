@@ -1,5 +1,6 @@
 import { createStackNavigator } from "@react-navigation/stack";
-import HomeScreen from "../../../../screens/user/home";
+import HomeScreen from "../../../../screens/main/user/home";
+
 
 
 

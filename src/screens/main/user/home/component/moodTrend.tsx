@@ -16,7 +16,7 @@ import {
   DAY_LABELS,
   CH,
   PAD,
-} from "../../../../constant/them";
+} from "../../../../../constant/them";
 import { CARD_W } from "./layout";
 
 // ─── Derived stats from trend data ───────────────────────────────────────────

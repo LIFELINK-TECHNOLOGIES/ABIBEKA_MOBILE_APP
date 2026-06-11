@@ -11,9 +11,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
-import Btn from "../../components/basics/btn";
-import Text from "../../components/basics/txt";
-import { SLIDES } from "../../constant/onboardingData";
+import Btn from "../../../components/basics/btn";
+import Text from "../../../components/basics/txt";
+import { SLIDES } from "../../../constant/onboardingData";
 import { SlideContent } from "./components/slides";
 import { styles, width } from "./style";
 

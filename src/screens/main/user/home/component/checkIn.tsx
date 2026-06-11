@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import Card from "./card";
-import { B } from "../../../../constant/them";
+import { B } from "../../../../../constant/them";
 
 // ─── Replace with your store/context later ────────────────────────────────────
 const HAS_CHECKED_IN = false;

@@ -1,13 +1,13 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, View } from "react-native";
-import Text from "../../../components/basics/txt";
+import Text from "../../../../components/basics/txt";
 import {
   IllustrationAI,
   IllustrationChart,
   IllustrationHeart,
   IllustrationShield,
 } from "./illustration";
-import { SlideItem } from "../../../constant/onboardingData";
+import { SlideItem } from "../../../../constant/onboardingData";
 import { styles, width } from "../style";
 
 interface SlideContentProps {

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 import Card from "./card";
-import { B, STRESS_VALS, DAY_LABELS } from "../../../../constant/them";
+import { B, STRESS_VALS, DAY_LABELS } from "../../../../../constant/them";
 
 const getStressLabel = (v: number) =>
   v >= 70 ? "High" : v >= 50 ? "Moderate" : "Low";

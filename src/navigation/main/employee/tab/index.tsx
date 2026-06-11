@@ -1,76 +1,92 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import HomeScreen from "../../../../screens/user/home";
-import { ForumScreen } from "../../../../screens/user/forum";
-import AbibekaChatScreen from "../../../../screens/user/aiChat";
-import AssessmentScreen from "../../../../screens/user/assessmentScreen";
-import { Ionicons } from "@expo/vector-icons"
+import { Ionicons } from "@expo/vector-icons";
+import { View } from "react-native";
 
-
-
-
-
+import HomeScreen from "../../../../screens/main/user/home";
+import { ForumScreen } from "../../../../screens/main/user/forum";
+import AbibekaChatScreen from "../../../../screens/main/user/aiChat";
+import AssessmentScreen from "../../../../screens/main/user/assessmentScreen";
 
 const Tab = createBottomTabNavigator();
 
+const ICONS: Record<string, string> = {
+  HomeScreen: "home-outline",
+  Forum: "chatbubbles-outline",
+  AiChat: "sparkles-outline",
+  Assessment: "document-text-outline",
+};
+
+const ICONS_ACTIVE: Record<string, string> = {
+  HomeScreen: "home",
+  Forum: "chatbubbles",
+  AiChat: "sparkles",
+  Assessment: "document-text",
+};
 
 function EmployeeTab() {
-    return (
-        <Tab.Navigator
-            screenOptions={({ route }) => ({
-                headerShown: false,
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
 
-                tabBarActiveTintColor: "#4F46E5",
-                tabBarInactiveTintColor: "#A1A1AA",
+        tabBarActiveTintColor: "#5DCAA5",
+        tabBarInactiveTintColor: "rgba(255,255,255,0.32)",
 
-                tabBarStyle: {
-                    backgroundColor: "#fff",
-                    height: 60,
-                    paddingBottom: 8,
-                    paddingTop: 8,
-                    borderTopWidth: 0,
-                    elevation: 6,
-                },
+        tabBarShowLabel: true,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: "700",
+          marginTop: -2,
+        },
 
-                
-                tabBarIcon: ({ color, size }) => {
-                    const icons = {
-                        HomeScreen: "home-outline",
-                        Forum: "chatbubbles-outline",
-                        AiChat: "sparkles-outline",
-                        Assessment: "document-text-outline",
-                        Home: "document-text-outline",
-                        
-                    };
+        tabBarStyle: {
+          backgroundColor: "#0B1020",
+          borderTopWidth: 1,
+          borderTopColor: "rgba(255,255,255,0.06)",
+          height: 64,
+          paddingTop: 8,
+          paddingBottom: 10,
+          elevation: 0,
+        },
 
-                    return (
-                        <Ionicons
-                            name={icons[route.name] || "ellipse-outline"}
-                            size={size}
-                            color={color}
-                        />
-                    );
-                },
-            })}
-        >
-            <Tab.Screen
-                name="HomeScreen"
-                component={HomeScreen}
-                options={{ title: "Home" }}
-            />
-            <Tab.Screen
-                name="Forum"
-                component={ForumScreen}
-            />
-            <Tab.Screen
-                name="AiChat"
-                component={AbibekaChatScreen}
-            />
-            <Tab.Screen
-                name="Assessment"
-                component={AssessmentScreen}
-            />
-        </Tab.Navigator>
-    );
+        tabBarItemStyle: {
+          paddingTop: 2,
+        },
+
+        tabBarIcon: ({ color, focused, size }) => {
+          const iconName = focused
+            ? ICONS_ACTIVE[route.name] || "ellipse"
+            : ICONS[route.name] || "ellipse-outline";
+
+          return (
+            <View
+              style={{
+                width: 38,
+                height: 30,
+                borderRadius: 12,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: focused
+                  ? "rgba(93,202,165,0.12)"
+                  : "transparent",
+              }}
+            >
+              <Ionicons name={iconName as any} size={size - 2} color={color} />
+            </View>
+          );
+        },
+      })}
+    >
+      <Tab.Screen
+        name="HomeScreen"
+        component={HomeScreen}
+        options={{ title: "Home" }}
+      />
+      <Tab.Screen name="Forum" component={ForumScreen} options={{ title: "Forum" }} />
+      <Tab.Screen name="AiChat" component={AbibekaChatScreen} options={{ title: "Chat" }} />
+      <Tab.Screen name="Assessment" component={AssessmentScreen} options={{ title: "Assess" }} />
+    </Tab.Navigator>
+  );
 }
 
 export default EmployeeTab;

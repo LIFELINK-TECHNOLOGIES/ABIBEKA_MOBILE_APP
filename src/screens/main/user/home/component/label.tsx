@@ -1,6 +1,6 @@
 import React from "react";
 import { Text, StyleSheet } from "react-native";
-import { B } from "../../../../constant/them";
+import { B } from "../../../../../constant/them";
 
 export default function Label({ text }: { text: string }) {
   return <Text style={styles.label}>{text}</Text>;

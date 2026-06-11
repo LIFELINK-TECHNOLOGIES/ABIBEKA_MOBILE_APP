@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import Card from "./card";
-import { B, MOOD_OPTIONS } from "../../../../constant/them";
+import { B, MOOD_OPTIONS } from "../../../../../constant/them";
 
 export default function MoodCard({ anim }: { anim: Animated.Value }) {
   const [picked, setPicked] = useState(null);

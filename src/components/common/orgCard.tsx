@@ -1,6 +1,6 @@
 import React from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
-import Card from "../../screens/user/home/component/card";
+import Card from "../../screens/main/user/home/component/card";
 import { B } from "../../constant/them";
 
 export default function OrgCard({ anim }: { anim: Animated.Value }) {

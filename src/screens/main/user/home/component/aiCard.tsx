@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { B } from "../../../../constant/them";
+import { B } from "../../../../../constant/them";
 
 export default function AiCard({ anim }: { anim: Animated.Value }) {
   const navigation = useNavigation<any>();

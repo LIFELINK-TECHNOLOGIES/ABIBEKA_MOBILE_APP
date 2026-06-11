@@ -15,9 +15,9 @@ import MoodTrendCard from "./component/moodTrend";
 import StressCard from "./component/stressCard";
 import EmotionCard from "./component/emotionCard";
 import { WINDOW_WIDTH } from "./component/layout";
-import Gap from "../../../components/common/gap";
-import OrgCard from "../../../components/common/orgCard";
-import { B } from "../../../constant/them";
+import Gap from "../../../../components/common/gap";
+import OrgCard from "../../../../components/common/orgCard";
+import { B } from "../../../../constant/them";
 
 export default function HomeScreen() {
   const a = Array.from(

@@ -7,7 +7,7 @@ import OrganizationMain from "./main/organization/main";
 
 
 const Stack = createStackNavigator();
-const isEmployee = false;
+const isEmployee = true;
 
 
 export default function MainNavigation() {
