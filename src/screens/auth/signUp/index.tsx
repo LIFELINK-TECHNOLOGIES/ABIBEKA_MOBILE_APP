@@ -24,6 +24,7 @@ import Svg, {
   Path,
   Stop,
 } from "react-native-svg";
+import { useAuthStore } from "../../../store/authStore";
 
 
 const BRAND = {
@@ -195,6 +196,9 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
     }).start();
   }, []);
 
+  //store value
+  const login = useAuthStore((state) => state.login);
+
   // Soft content switch animation logic when context shifts
   const handleAccountTypeChange = (type: "user" | "org") => {
     if (type === accountType) return;
@@ -228,8 +232,7 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
         friction: 10,
         useNativeDriver: true,
       }),
-    ]).start(() => 
-     navigation.navigate("Home"));
+    ]).start(() => login("organization"));
   };
 
   const contentTranslateY = formShiftAnim.interpolate({

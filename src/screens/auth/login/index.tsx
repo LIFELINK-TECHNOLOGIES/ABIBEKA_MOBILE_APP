@@ -24,6 +24,7 @@ import Svg, {
   Path,
   Stop,
 } from "react-native-svg";
+import { useAuthStore } from "../../../store/authStore";
 
 const { width: W } = Dimensions.get("window");
 
@@ -253,6 +254,8 @@ export default function LoginScreen({
   const footerAnim = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
 
+  //store value
+  const login = useAuthStore((state) => state.login);
   // Clean Navigation trigger handler
   const handleSignUpRedirect = () => {
     // Note: Double check that your Router navigator explicitly names this path exactly "SignUp"
@@ -338,7 +341,10 @@ export default function LoginScreen({
         friction: 10,
         useNativeDriver: true,
       }),
-    ]).start(() => navigation.navigate("Home"));
+    ]).start(() => 
+    
+    login("employee")
+    );
   };
 
   const logoY = logoAnim.interpolate({

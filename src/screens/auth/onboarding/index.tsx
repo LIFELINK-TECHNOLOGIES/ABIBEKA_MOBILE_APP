@@ -16,6 +16,7 @@ import Text from "../../../components/basics/txt";
 import { SLIDES } from "../../../constant/onboardingData";
 import { SlideContent } from "./components/slides";
 import { styles, width } from "./style";
+import { useAuthStore } from "../../../store/authStore";
 
 interface OnboardingScreenProps {
   onFinish?: () => void;
@@ -92,6 +93,9 @@ export default function OnboardingScreen({
     viewAreaCoveragePercentThreshold: 50,
   }).current;
 
+  //isOnboarded variable
+  const setIsOnboarded = useAuthStore((state) => state.setIsOnboarded);
+
   // ─── Button press ───────────────────────────────────────────────────────────
   const goNext = useCallback(() => {
     Animated.sequence([
@@ -109,7 +113,7 @@ export default function OnboardingScreen({
       }),
     ]).start(() => {
       if (isLast) {
-        navigation.navigate("Login");
+        setIsOnboarded(true);
         return;
       }
       flatListRef.current?.scrollToIndex({
