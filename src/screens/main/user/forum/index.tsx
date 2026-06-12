@@ -670,7 +670,7 @@ const NewSolutionSheet = ({
             </Text>
           </View>
 
-          <Text style={[s.tagLabel, { marginTop: 12 }]}>TAG THE ISSUE</Text>
+          <Text style={[s.tagLabel, { marginTop: 12 }]}>TAG THE ISSUES</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 14 }}>
             {(Object.keys(SOL_TAG) as SolutionTag[]).map(tag => {
               const cfg = SOL_TAG[tag];
