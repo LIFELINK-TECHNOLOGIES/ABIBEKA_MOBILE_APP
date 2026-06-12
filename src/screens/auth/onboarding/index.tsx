@@ -114,6 +114,7 @@ export default function OnboardingScreen({
     ]).start(() => {
       if (isLast) {
         setIsOnboarded(true);
+        navigation.na
         return;
       }
       flatListRef.current?.scrollToIndex({

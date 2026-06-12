@@ -39,6 +39,27 @@ const BRAND = {
   input: "rgba(255,255,255,0.04)",
 };
 
+// ─── Options ──────────────────────────────────────────────────────────────────
+const EMPLOYEE_RANGES = ["1–10", "11–50", "51–200", "201–500", "500+"];
+
+const BUSINESS_SECTORS = [
+  "Technology",
+  "Finance & Banking",
+  "Healthcare",
+  "Education",
+  "Manufacturing",
+  "Retail & Commerce",
+  "Logistics & Transport",
+  "Agriculture",
+  "Real Estate",
+  "Hospitality",
+  "Energy & Utilities",
+  "Telecommunications",
+  "Media & Entertainment",
+  "Construction",
+  "Other",
+];
+
 // ─── Brand logo ───────────────────────────────────────────────────────────────
 const BrandLogo = ({ size = 64 }: { size?: number }) => {
   const pulse = useRef(new Animated.Value(1)).current;
@@ -163,6 +184,90 @@ const InputField = ({
   );
 };
 
+// ─── Pill Selector (for employee range) ──────────────────────────────────────
+const PillSelector = ({
+  label,
+  options,
+  value,
+  onSelect,
+}: {
+  label: string;
+  options: string[];
+  value: string;
+  onSelect: (v: string) => void;
+}) => {
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <View style={styles.pillRow}>
+        {options.map((opt) => {
+          const active = value === opt;
+          return (
+            <Pressable
+              key={opt}
+              onPress={() => onSelect(opt)}
+              style={[styles.pillOption, active && styles.pillOptionActive]}
+            >
+              <Text
+                style={[
+                  styles.pillOptionText,
+                  active && styles.pillOptionTextActive,
+                ]}
+              >
+                {opt}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
+// ─── Grid Selector (for business sector) ─────────────────────────────────────
+const GridSelector = ({
+  label,
+  options,
+  value,
+  onSelect,
+}: {
+  label: string;
+  options: string[];
+  value: string;
+  onSelect: (v: string) => void;
+}) => {
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <View style={styles.gridWrap}>
+        {options.map((opt) => {
+          const active = value === opt;
+          return (
+            <Pressable
+              key={opt}
+              onPress={() => onSelect(opt)}
+              style={[
+                styles.gridOption,
+                opt === "Other" && styles.gridOptionFull,
+                active && styles.gridOptionActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.gridOptionText,
+                  active && styles.gridOptionTextActive,
+                ]}
+              >
+                {opt}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
 // ─── Main Signup Screen Component ────────────────────────────────────────────
 interface SignUpScreenProps {
   onSignInPress?: () => void;
@@ -181,7 +286,10 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
   // Account Specific States
   const [fullName, setFullName] = useState("");
   const [orgName, setOrgName] = useState("");
-  const [taxId, setTaxId] = useState("");
+  const [cacNumber, setCacNumber] = useState("");
+  const [location, setLocation] = useState("");
+  const [employeeRange, setEmployeeRange] = useState("");
+  const [businessSector, setBusinessSector] = useState("");
 
   // Staggered Entry Animation Hooks
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -364,10 +472,28 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
                       icon="✉"
                     />
                     <InputField
-                      label="Tax ID / Registration Number"
-                      value={taxId}
-                      onChangeText={setTaxId}
+                      label="CAC Certificate Number"
+                      value={cacNumber}
+                      onChangeText={setCacNumber}
                       icon="📜"
+                    />
+                    <InputField
+                      label="Location"
+                      value={location}
+                      onChangeText={setLocation}
+                      icon="📍"
+                    />
+                    <PillSelector
+                      label="Average Number of Employees"
+                      options={EMPLOYEE_RANGES}
+                      value={employeeRange}
+                      onSelect={setEmployeeRange}
+                    />
+                    <GridSelector
+                      label="Business Sector"
+                      options={BUSINESS_SECTORS}
+                      value={businessSector}
+                      onSelect={setBusinessSector}
                     />
                   </View>
                 )}
@@ -549,6 +675,69 @@ const styles = StyleSheet.create({
   inputIcon: { fontSize: 15, marginRight: 10 },
   input: { flex: 1, fontSize: 15, color: BRAND.text },
   showText: { fontSize: 11, fontWeight: "700", color: BRAND.primary },
+
+  // Pill selector (employee range)
+  pillRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  pillOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    backgroundColor: BRAND.input,
+  },
+  pillOptionActive: {
+    backgroundColor: "rgba(15,118,110,0.14)",
+    borderColor: BRAND.primary,
+  },
+  pillOptionText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: BRAND.muted,
+  },
+  pillOptionTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+
+  // Grid selector (business sector)
+  gridWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  gridOption: {
+    width: "48%",
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    backgroundColor: BRAND.input,
+    alignItems: "center",
+  },
+  gridOptionFull: {
+    width: "100%",
+  },
+  gridOptionActive: {
+    backgroundColor: "rgba(15,118,110,0.14)",
+    borderColor: BRAND.primary,
+  },
+  gridOptionText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: BRAND.muted,
+    textAlign: "center",
+  },
+  gridOptionTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+
   btn: {
     height: 56,
     borderRadius: 16,
