@@ -6,11 +6,9 @@ import Home from "../../../../screens/main/organization/home";
 import JoinRequestsScreen from "../../../../screens/main/organization/request";
 import AbibekaChatScreen from "../../../../screens/main/user/aiChat";
 import AssignRoleScreen from "../../../../screens/main/organization/assignRole";
-import SolutionsForumScreen from "../../../../screens/main/organization/solution";
 import { ForumScreen } from "../../../../screens/main/user/forum";
 
-
-// ─── Tokens (matches all org screens) ────────────────────────────────────────
+// ─── Tokens ──────────────────────────────────────────────────────────────────
 const C = {
   bg: '#04060F',
   surface: '#0F1628',
@@ -21,39 +19,47 @@ const C = {
   tealLight: '#5DCAA5',
 };
 
-// ─── Tab config ───────────────────────────────────────────────────────────────
+// ─── Tab Config ───────────────────────────────────────────────────────────────
 type TabItem = {
   name: string;
-  icon: (active: boolean) => string;
+  icon: string;
   label: string;
+  component: React.ComponentType<any>;
+  requireAuth?: number; // minimum clearance level
 };
 
-const TABS: TabItem[] = [
+const TAB_CONFIG: TabItem[] = [
   {
     name: 'Home',
     label: 'Home',
-    icon: (a) => a ? '⬡' : '⬡',
-  },
-  {
-    name: 'Request',
-    label: 'Requests',
-    icon: (a) => a ? '◈' : '◈',
-  },
-  {
-    name: 'Roles',
-    label: 'Roles',
-    icon: (a) => a ? '❖' : '❖',
-  },
-  {
-    name: 'AI',
-    label: 'Abibeka',
-    icon: (a) => a ? '✦' : '✦',
+    icon: '⬡',
+    component: Home,
   },
   {
     name: 'Forum',
     label: 'Forum',
-    icon: (a) => a ? '◎' : '◎',
+    icon: '◎',
+    component: ForumScreen,
   },
+   {
+    name: 'AI',
+    label: 'Abibeka',
+    icon: '✦',
+    component: AbibekaChatScreen,
+  },
+   {
+    name: 'Roles',
+    label: 'Roles',
+    icon: '❖',
+    component: AssignRoleScreen,
+    requireAuth: 1, // Only visible for level 1
+  },
+  {
+    name: 'Request',
+    label: 'Requests',
+    icon: '◈',
+    component: JoinRequestsScreen,
+  }
 ];
 
 // ─── Custom Tab Bar ───────────────────────────────────────────────────────────
@@ -63,7 +69,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
       <View style={styles.tabBar}>
         {state.routes.map((route, index) => {
           const isFocused = state.index === index;
-          const tabCfg = TABS.find(t => t.name === route.name);
+          const tabCfg = TAB_CONFIG.find(t => t.name === route.name);
           if (!tabCfg) return null;
 
           const onPress = () => {
@@ -77,7 +83,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             }
           };
 
-          // Special center AI tab
+          // AI tab - centered and raised
           if (route.name === 'AI') {
             return (
               <TouchableOpacity
@@ -88,7 +94,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               >
                 <View style={[styles.centerTabInner, isFocused && styles.centerTabInnerActive]}>
                   <Text style={[styles.centerTabIcon, isFocused && styles.centerTabIconActive]}>
-                    ✦
+                    {tabCfg.icon}
                   </Text>
                 </View>
                 <Text style={[styles.centerTabLabel, isFocused && { color: C.tealLight }]}>
@@ -98,6 +104,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             );
           }
 
+          // Regular tabs
           return (
             <TouchableOpacity
               key={route.key}
@@ -105,17 +112,13 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               onPress={onPress}
               style={styles.tabBtn}
             >
-              {/* Active pill background */}
               {isFocused && <View style={styles.activePill} />}
-
               <Text style={[styles.tabIcon, isFocused && styles.tabIconActive]}>
-                {tabCfg.icon(isFocused)}
+                {tabCfg.icon}
               </Text>
               <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>
                 {tabCfg.label}
               </Text>
-
-              {/* Active dot */}
               {isFocused && <View style={styles.activeDot} />}
             </TouchableOpacity>
           );
@@ -128,24 +131,33 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 // ─── Navigator ────────────────────────────────────────────────────────────────
 const Tab = createBottomTabNavigator();
 
-export default function OrganizationTab() {
+interface OrganizationTabProps {
+  clearanceLevel?: number;
+}
+
+export default function OrganizationTab({ clearanceLevel = 1 }: OrganizationTabProps) {
+  const visibleTabs = TAB_CONFIG.filter(
+    tab => !tab.requireAuth || clearanceLevel <= tab.requireAuth
+  );
+
   return (
     <Tab.Navigator
       screenOptions={{ headerShown: false }}
       tabBar={(props) => <CustomTabBar {...props} />}
     >
-      <Tab.Screen name="Home" component={Home} />
-      <Tab.Screen name="Forum" component={ForumScreen} />
-      <Tab.Screen name="AI" component={AbibekaChatScreen} />
-      <Tab.Screen name="Roles" component={AssignRoleScreen} />
-      <Tab.Screen name="Request" component={JoinRequestsScreen} />
+      {visibleTabs.map(tab => (
+        <Tab.Screen
+          key={tab.name}
+          name={tab.name}
+          component={tab.component}
+        />
+      ))}
     </Tab.Navigator>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Styles ────────────────────────────────────
 const styles = StyleSheet.create({
-  // Outer wrapper — sits above the system home indicator
   tabBarWrapper: {
     backgroundColor: C.bg,
     borderTopWidth: 1,
@@ -154,8 +166,6 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingHorizontal: 8,
   },
-
-  // Inner pill container
   tabBar: {
     flexDirection: 'row',
     backgroundColor: C.surface,
@@ -166,8 +176,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     alignItems: 'flex-end',
   },
-
-  // Regular tab button
   tabBtn: {
     flex: 1,
     alignItems: 'center',
@@ -176,8 +184,6 @@ const styles = StyleSheet.create({
     gap: 3,
     position: 'relative',
   },
-
-  // Active pill glow behind icon
   activePill: {
     position: 'absolute',
     top: 2,
@@ -188,7 +194,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(15,118,110,0.28)',
   },
-
   tabIcon: {
     fontSize: 17,
     color: C.muted,
@@ -197,7 +202,6 @@ const styles = StyleSheet.create({
   tabIconActive: {
     color: C.tealLight,
   },
-
   tabLabel: {
     fontSize: 9,
     fontWeight: '600',
@@ -208,7 +212,6 @@ const styles = StyleSheet.create({
     color: C.tealLight,
     fontWeight: '800',
   },
-
   activeDot: {
     width: 4,
     height: 4,
@@ -216,8 +219,6 @@ const styles = StyleSheet.create({
     backgroundColor: C.tealLight,
     marginTop: 1,
   },
-
-  // Center AI tab — raised
   centerTabBtn: {
     flex: 1,
     alignItems: 'center',
