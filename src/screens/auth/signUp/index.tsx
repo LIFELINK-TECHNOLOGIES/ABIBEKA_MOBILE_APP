@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
+import { changeLanguage } from "../../../utils/i18n";
 
 import Svg, {
   Circle,
@@ -129,6 +131,7 @@ const InputField = ({
   secure?: boolean;
   icon: string;
 }) => {
+  const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
   const [show, setShow] = useState(false);
   const borderAnim = useRef(new Animated.Value(0)).current;
@@ -176,7 +179,7 @@ const InputField = ({
         />
         {secure && (
           <Pressable onPress={() => setShow((v) => !v)} hitSlop={8}>
-            <Text style={styles.showText}>{show ? "Hide" : "Show"}</Text>
+            <Text style={styles.showText}>{show ? t('common.hide') : t('common.show')}</Text>
           </Pressable>
         )}
       </Animated.View>
@@ -236,6 +239,7 @@ const GridSelector = ({
   value: string;
   onSelect: (v: string) => void;
 }) => {
+  const { t } = useTranslation();
   return (
     <View style={{ marginBottom: 16 }}>
       <Text style={styles.inputLabel}>{label}</Text>
@@ -248,7 +252,7 @@ const GridSelector = ({
               onPress={() => onSelect(opt)}
               style={[
                 styles.gridOption,
-                opt === "Other" && styles.gridOptionFull,
+                opt === t('common.other') && styles.gridOptionFull,
                 active && styles.gridOptionActive,
               ]}
             >
@@ -274,7 +278,9 @@ interface SignUpScreenProps {
 }
 
 export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
+  console.log('current lang:', i18n.language, 'test key:', t('auth.getStarted'));
 
   // Flow State Switch: 'user' | 'org'
   const [accountType, setAccountType] = useState<"user" | "org">("user");
@@ -366,21 +372,61 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            {/* LANGUAGE SELECTOR */}
+            <View style={styles.languageSwitcher}>
+              <TouchableOpacity 
+                onPress={() => changeLanguage('en')}
+                style={[
+                  styles.langButton,
+                  i18n.language === 'en' && styles.langButtonActive
+                ]}
+              >
+                <Text style={[
+                  styles.langText,
+                  i18n.language === 'en' && styles.langTextActive
+                ]}>EN</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => changeLanguage('fr')}
+                style={[
+                  styles.langButton,
+                  i18n.language === 'fr' && styles.langButtonActive
+                ]}
+              >
+                <Text style={[
+                  styles.langText,
+                  i18n.language === 'fr' && styles.langTextActive
+                ]}>FR</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => changeLanguage('pcm')}
+                style={[
+                  styles.langButton,
+                  i18n.language === 'pcm' && styles.langButtonActive
+                ]}
+              >
+                <Text style={[
+                  styles.langText,
+                  i18n.language === 'pcm' && styles.langTextActive
+                ]}>PCM</Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Header Element */}
             <Animated.View style={[styles.logoBlock, { opacity: fadeAnim }]}>
               <BrandLogo size={52} />
               <View style={{ marginLeft: 14 }}>
                 <Text style={styles.wordmark}>Abibeka</Text>
-                <Text style={styles.wordmarkSub}>Create Secure Workspace</Text>
+                <Text style={styles.wordmarkSub}>{t('auth.createSecureWorkspace')}</Text>
               </View>
             </Animated.View>
 
             <Animated.View
               style={[{ opacity: fadeAnim }, { marginBottom: 20 }]}
             >
-              <Text style={styles.pageTitle}>Get Started</Text>
+              <Text style={styles.pageTitle}>{t('auth.getStarted')}</Text>
               <Text style={styles.pageSub}>
-                Configure identity encryption keys
+                {t('auth.configureKeys')}
               </Text>
             </Animated.View>
 
@@ -401,7 +447,7 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
                     accountType === "user" && styles.switchTextActive,
                   ]}
                 >
-                  Individual
+                  {t('auth.individual')}
                 </Text>
               </Pressable>
               <Pressable
@@ -417,7 +463,7 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
                     accountType === "org" && styles.switchTextActive,
                   ]}
                 >
-                  Organization
+                  {t('auth.organization')}
                 </Text>
               </Pressable>
             </Animated.View>
@@ -430,8 +476,8 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
                 <View style={styles.badgeDot} />
                 <Text style={styles.badgeText}>
                   {accountType === "user"
-                    ? "Personal Account Space"
-                    : "Enterprise Tenant Node"}
+                    ? t('auth.personalAccount')
+                    : t('auth.enterpriseNode')}
                 </Text>
               </View>
 
@@ -445,13 +491,13 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
                 {accountType === "user" ? (
                   <View>
                     <InputField
-                      label="Full Name"
+                      label={t('auth.fullName')}
                       value={fullName}
                       onChangeText={setFullName}
                       icon="👤"
                     />
                     <InputField
-                      label="Email Address"
+                      label={t('auth.emailAddress')}
                       value={email}
                       onChangeText={setEmail}
                       icon="✉"
@@ -460,37 +506,37 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
                 ) : (
                   <View>
                     <InputField
-                      label="Organization Name"
+                      label={t('auth.orgName')}
                       value={orgName}
                       onChangeText={setOrgName}
                       icon="🏢"
                     />
                     <InputField
-                      label="Corporate Business Email"
+                      label={t('auth.corporateEmail')}
                       value={email}
                       onChangeText={setEmail}
                       icon="✉"
                     />
                     <InputField
-                      label="CAC Certificate Number"
+                      label={t('auth.cacNumber')}
                       value={cacNumber}
                       onChangeText={setCacNumber}
                       icon="📜"
                     />
                     <InputField
-                      label="Location"
+                      label={t('auth.location')}
                       value={location}
                       onChangeText={setLocation}
                       icon="📍"
                     />
                     <PillSelector
-                      label="Average Number of Employees"
+                      label={t('auth.employees')}
                       options={EMPLOYEE_RANGES}
                       value={employeeRange}
                       onSelect={setEmployeeRange}
                     />
                     <GridSelector
-                      label="Business Sector"
+                      label={t('auth.businessSector')}
                       options={BUSINESS_SECTORS}
                       value={businessSector}
                       onSelect={setBusinessSector}
@@ -499,7 +545,7 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
                 )}
 
                 <InputField
-                  label="Vault Access Password"
+                  label={t('auth.vaultPassword')}
                   value={password}
                   onChangeText={setPassword}
                   icon="⚿"
@@ -516,7 +562,7 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
                   activeOpacity={0.88}
                   style={styles.btn}
                 >
-                  <Text style={styles.btnText}>Generate Credentials</Text>
+                  <Text style={styles.btnText}>{t('auth.generateCredentials')}</Text>
                   <View style={styles.btnDot} />
                 </TouchableOpacity>
               </Animated.View>
@@ -528,7 +574,7 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
                     style={[styles.metaDot, { backgroundColor: BRAND.accent }]}
                   />
                   <Text style={styles.metaText}>
-                    Zero Knowledge Architecture
+                    {t('auth.zeroKnowledge')}
                   </Text>
                 </View>
               </View>
@@ -536,9 +582,9 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
 
             {/* Account Switch Redirection Footer */}
             <Animated.View style={[styles.footer, { opacity: fadeAnim }]}>
-              <Text style={styles.footerText}>Already tracking accounts?</Text>
+              <Text style={styles.footerText}>{t('auth.alreadyTracking')}</Text>
               <Pressable onPress={onSignInPress} hitSlop={10}>
-                <Text style={styles.footerLink}> Sign In</Text>
+                <Text style={styles.footerLink}> {t('common.signIn')}</Text>
               </Pressable>
             </Animated.View>
           </ScrollView>
@@ -557,6 +603,32 @@ const styles = StyleSheet.create({
     paddingTop: 28,
     paddingBottom: 40,
   },
+  languageSwitcher: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 20,
+    gap: 8,
+  },
+  langButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  langButtonActive: {
+    backgroundColor: 'rgba(15,118,110,0.2)',
+    borderColor: BRAND.primary,
+  },
+  langText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  langTextActive: {
+    color: BRAND.primary,
+  },
   logoBlock: { flexDirection: "row", alignItems: "center", marginBottom: 28 },
   wordmark: {
     fontSize: 22,
@@ -574,7 +646,6 @@ const styles = StyleSheet.create({
   },
   pageSub: { fontSize: 14, color: BRAND.muted },
 
-  // Account Flow Segment Selector Toggle
   switchContainer: {
     flexDirection: "row",
     backgroundColor: "rgba(255,255,255,0.03)",
@@ -607,7 +678,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // Main Card Assembly Frame
   card: {
     backgroundColor: BRAND.card,
     borderRadius: 24,
@@ -676,7 +746,6 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 15, color: BRAND.text },
   showText: { fontSize: 11, fontWeight: "700", color: BRAND.primary },
 
-  // Pill selector (employee range)
   pillRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -704,7 +773,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // Grid selector (business sector)
   gridWrap: {
     flexDirection: "row",
     flexWrap: "wrap",

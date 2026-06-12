@@ -1,0 +1,29 @@
+{
+  "common": {
+    "show": "Show",
+    "hide": "Hide",
+    "other": "Other",
+    "signIn": "Sign In"
+  },
+  "auth": {
+    "createSecureWorkspace": "Create Secure Workspace",
+    "getStarted": "Get Started",
+    "configureKeys": "Configure identity encryption keys",
+    "individual": "Individual",
+    "organization": "Organization",
+    "personalAccount": "Personal Account Space",
+    "enterpriseNode": "Enterprise Tenant Node",
+    "fullName": "Full Name",
+    "emailAddress": "Email Address",
+    "orgName": "Organization Name",
+    "corporateEmail": "Corporate Business Email",
+    "cacNumber": "CAC Certificate Number",
+    "location": "Location",
+    "employees": "Average Number of Employees",
+    "businessSector": "Business Sector",
+    "vaultPassword": "Vault Access Password",
+    "generateCredentials": "Generate Credentials",
+    "zeroKnowledge": "Zero Knowledge Architecture",
+    "alreadyTracking": "Already tracking accounts?"
+  }
+}

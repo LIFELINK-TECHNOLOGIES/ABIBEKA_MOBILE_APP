@@ -1,0 +1,29 @@
+{
+  "common": {
+    "show": "Afficher",
+    "hide": "Masquer",
+    "other": "Autre",
+    "signIn": "Se connecter"
+  },
+  "auth": {
+    "createSecureWorkspace": "Créer un espace sécurisé",
+    "getStarted": "Commencer",
+    "configureKeys": "Configurer les clés d'identité",
+    "individual": "Individuel",
+    "organization": "Organisation",
+    "personalAccount": "Espace compte personnel",
+    "enterpriseNode": "Nœud locataire d'entreprise",
+    "fullName": "Nom complet",
+    "emailAddress": "Adresse e-mail",
+    "orgName": "Nom de l'organisation",
+    "corporateEmail": "E-mail professionnel",
+    "cacNumber": "Numéro de certificat CAC",
+    "location": "Emplacement",
+    "employees": "Nombre moyen d'employés",
+    "businessSector": "Secteur d'activité",
+    "vaultPassword": "Mot de passe d'accès au coffre",
+    "generateCredentials": "Générer des identifiants",
+    "zeroKnowledge": "Architecture Zero Knowledge",
+    "alreadyTracking": "Vous avez déjà un compte?"
+  }
+}
