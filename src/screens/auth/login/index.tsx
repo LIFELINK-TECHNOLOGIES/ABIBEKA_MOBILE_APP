@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
+import { changeLanguage } from "../../../utils/i18n";
 
 import Svg, {
   Circle,
@@ -43,7 +45,7 @@ const BRAND = {
 const LANGUAGES = [
   { code: "en", label: "English", flag: "🇬🇧" },
   { code: "fr", label: "Français", flag: "🇫🇷" },
-  { code: "pc", label: "Pidgin", flag: "🇳🇬" },
+  { code: "pcm", label: "Pidgin", flag: "🇳🇬" },
 ];
 
 // ─── Brand logo ───────────────────────────────────────────────────────────────
@@ -161,6 +163,7 @@ const InputField = ({
   icon: string;
   enterAnim: Animated.Value;
 }) => {
+  const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
   const [show, setShow] = useState(false);
   const borderAnim = useRef(new Animated.Value(0)).current;
@@ -217,7 +220,7 @@ const InputField = ({
         />
         {secure && (
           <Pressable onPress={() => setShow((v) => !v)} hitSlop={8}>
-            <Text style={styles.showText}>{show ? "Hide" : "Show"}</Text>
+            <Text style={styles.showText}>{show ? t('common.hide') : t('common.show')}</Text>
           </Pressable>
         )}
       </Animated.View>
@@ -236,11 +239,10 @@ export default function LoginScreen({
   onLogin,
   onForgotPass,
 }: LoginScreenProps) {
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [lang, setLang] = useState("en");
-
 
   const logoAnim = useRef(new Animated.Value(0)).current;
   const headAnim = useRef(new Animated.Value(0)).current;
@@ -388,7 +390,7 @@ export default function LoginScreen({
               <BrandLogo size={60} />
               <View style={{ marginLeft: 14 }}>
                 <Text style={styles.wordmark}>Abibeka</Text>
-                <Text style={styles.wordmarkSub}>Mental Wellness Platform</Text>
+                <Text style={styles.wordmarkSub}>{t('common.appTagline')}</Text>
               </View>
             </Animated.View>
 
@@ -399,14 +401,14 @@ export default function LoginScreen({
                 { marginBottom: 20 },
               ]}
             >
-              <Text style={styles.pageTitle}>Welcome back</Text>
-              <Text style={styles.pageSub}>Sign in to your account</Text>
+              <Text style={styles.pageTitle}>{t('login.welcomeBack')}</Text>
+              <Text style={styles.pageSub}>{t('login.signInToAccount')}</Text>
             </Animated.View>
 
             {/* Language selector */}
             <LangSelector
-              selected={lang}
-              onSelect={setLang}
+              selected={i18n.language}
+              onSelect={changeLanguage}
               enterAnim={langAnim}
             />
 
@@ -421,25 +423,25 @@ export default function LoginScreen({
 
               <View style={styles.badge}>
                 <View style={styles.badgeDot} />
-                <Text style={styles.badgeText}>Protected Session</Text>
+                <Text style={styles.badgeText}>{t('login.protectedSession')}</Text>
               </View>
 
-              <Text style={styles.cardTitle}>Sign In</Text>
+              <Text style={styles.cardTitle}>{t('login.signIn')}</Text>
               <Text style={styles.cardSub}>
-                Continue your wellness journey securely.
+                {t('login.continueJourney')}
               </Text>
 
               {/* Input Fields */}
               <View style={{ marginTop: 24 }}>
                 <InputField
-                  label="Email Address"
+                  label={t('auth.emailAddress')}
                   value={email}
                   onChangeText={setEmail}
                   icon="✉"
                   enterAnim={f1Anim}
                 />
                 <InputField
-                  label="Password"
+                  label={t('auth.vaultPassword')}
                   value={password}
                   onChangeText={setPassword}
                   icon="⚿"
@@ -453,7 +455,7 @@ export default function LoginScreen({
                 style={[styles.forgotRow, { opacity: forgotAnim }]}
               >
                 <Pressable onPress={onForgotPass} hitSlop={10}>
-                  <Text style={styles.forgotText}>Forgot password?</Text>
+                  <Text style={styles.forgotText}>{t('login.forgotPassword')}</Text>
                 </Pressable>
               </Animated.View>
 
@@ -466,7 +468,7 @@ export default function LoginScreen({
                   activeOpacity={0.88}
                   style={styles.btn}
                 >
-                  <Text style={styles.btnText}>Sign In</Text>
+                  <Text style={styles.btnText}>{t('login.signIn')}</Text>
                   <View style={styles.btnDot} />
                 </TouchableOpacity>
               </Animated.View>
@@ -477,22 +479,22 @@ export default function LoginScreen({
                   <View
                     style={[styles.metaDot, { backgroundColor: BRAND.accent }]}
                   />
-                  <Text style={styles.metaText}>End-to-end encrypted</Text>
+                  <Text style={styles.metaText}>{t('login.endToEndEncrypted')}</Text>
                 </View>
                 <View style={styles.metaItem}>
                   <View
                     style={[styles.metaDot, { backgroundColor: BRAND.primary }]}
                   />
-                  <Text style={styles.metaText}>Anonymous identity</Text>
+                  <Text style={styles.metaText}>{t('login.anonymousIdentity')}</Text>
                 </View>
               </Animated.View>
             </Animated.View>
 
             {/* Account Switch Redirect Link Footer */}
             <Animated.View style={[styles.footer, { opacity: footerAnim }]}>
-              <Text style={styles.footerText}>New to Abibeka?</Text>
+              <Text style={styles.footerText}>{t('login.newToAbibeka')}</Text>
               <Pressable onPress={handleSignUpRedirect} hitSlop={12}>
-                <Text style={styles.footerLink}> Create account</Text>
+                <Text style={styles.footerLink}> {t('login.createAccount')}</Text>
               </Pressable>
             </Animated.View>
           </ScrollView>

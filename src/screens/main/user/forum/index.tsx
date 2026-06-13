@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 const B = {
@@ -164,21 +165,24 @@ const INITIAL_SOLUTIONS: Solution[] = [
 ];
 
 // ─── Shared: Forum header (slim single row) ───────────────────────────────────
-const ForumHeader = ({ activeToday }: { activeToday: number }) => (
-  <View style={s.header}>
-    <View style={s.orgIconWrap}>
-      <Text style={{ fontSize: 18 }}>{ORG.icon}</Text>
+const ForumHeader = ({ activeToday }: { activeToday: number }) => {
+  const { t } = useTranslation();
+  return (
+    <View style={s.header}>
+      <View style={s.orgIconWrap}>
+        <Text style={{ fontSize: 18 }}>{ORG.icon}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.title}>{ORG.name}</Text>
+        <Text style={s.addressText}>📍 {ORG.address}</Text>
+      </View>
+      <View style={s.activePill}>
+        <View style={s.activeDot} />
+        <Text style={s.activeText}>{t('forum.activeCount', { count: activeToday })}</Text>
+      </View>
     </View>
-    <View style={{ flex: 1 }}>
-      <Text style={s.title}>{ORG.name}</Text>
-      <Text style={s.addressText}>📍 {ORG.address}</Text>
-    </View>
-    <View style={s.activePill}>
-      <View style={s.activeDot} />
-      <Text style={s.activeText}>{activeToday} active</Text>
-    </View>
-  </View>
-);
+  );
+};
 
 // ─── Feed: Post card ──────────────────────────────────────────────────────────
 const PostCard = ({ post, onVote }: { post: Post; onVote: (id: string, dir: 'up' | 'down') => void }) => {
@@ -261,6 +265,7 @@ const NewPostSheet = ({
   onClose: () => void;
   onPost: (content: string, tag: string) => void;
 }) => {
+  const { t } = useTranslation();
   const [content, setContent] = useState('');
   const [tag, setTag] = useState('');
   const slide = useRef(new Animated.Value(700)).current;
@@ -293,8 +298,8 @@ const NewPostSheet = ({
           <Text style={{ fontSize: 18 }}>🦊</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.sheetTitle}>Share anonymously</Text>
-          <Text style={s.sheetSub}>🔒 Only visible to {ORG.name} members · your identity is hidden</Text>
+          <Text style={s.sheetTitle}>{t('forum.shareAnonymously')}</Text>
+          <Text style={s.sheetSub}>{t('forum.visibleToOrgOnly', { org: ORG.name })}</Text>
         </View>
         <Pressable onPress={onClose} hitSlop={12}>
           <Text style={{ fontSize: 20, color: B.muted }}>✕</Text>
@@ -305,7 +310,7 @@ const NewPostSheet = ({
         <TextInput
           value={content}
           onChangeText={setContent}
-          placeholder="What's on your mind? You're anonymous here."
+          placeholder={t('forum.postPlaceholder')}
           placeholderTextColor={B.muted2}
           multiline
           numberOfLines={5}
@@ -318,17 +323,17 @@ const NewPostSheet = ({
         </Text>
       </View>
 
-      <Text style={s.tagLabel}>How are you feeling?</Text>
+      <Text style={s.tagLabel}>{t('forum.howAreYouFeeling')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18 }}>
         <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 2 }}>
-          {MOOD_TAGS.map((t, i) => (
+          {MOOD_TAGS.map((tg, i) => (
             <Pressable
               key={i}
-              onPress={() => setTag(t.label === tag ? '' : t.label)}
-              style={[s.tagChip, tag === t.label && { borderColor: t.color, backgroundColor: t.color + '18' }]}
+              onPress={() => setTag(tg.label === tag ? '' : tg.label)}
+              style={[s.tagChip, tag === tg.label && { borderColor: tg.color, backgroundColor: tg.color + '18' }]}
             >
-              <Text style={[s.tagChipText, tag === t.label && { color: t.color, fontWeight: '700' }]}>
-                {t.label}
+              <Text style={[s.tagChipText, tag === tg.label && { color: tg.color, fontWeight: '700' }]}>
+                {tg.label}
               </Text>
             </Pressable>
           ))}
@@ -337,9 +342,9 @@ const NewPostSheet = ({
 
       {(!content.trim() || !tag) && (
         <Text style={s.postHint}>
-          {!content.trim() && !tag ? 'Write something and pick a mood to post'
-            : !content.trim() ? 'Write something to post'
-            : 'Pick a mood tag to post'}
+          {!content.trim() && !tag ? t('forum.hintBoth')
+            : !content.trim() ? t('forum.hintContent')
+            : t('forum.hintTag')}
         </Text>
       )}
 
@@ -348,7 +353,7 @@ const NewPostSheet = ({
         activeOpacity={0.88}
         style={[s.postBtn, (!content.trim() || !tag) && { opacity: 0.35 }]}
       >
-        <Text style={s.postBtnText}>Post to Forum</Text>
+        <Text style={s.postBtnText}>{t('forum.postToForum')}</Text>
       </TouchableOpacity>
       <View style={{ height: 20 }} />
     </Animated.View>
@@ -390,6 +395,7 @@ const SolutionVoteBar = ({
   solution: Solution;
   onVote: (id: string, dir: 'up' | 'down') => void;
 }) => {
+  const { t } = useTranslation();
   const upScale = useRef(new Animated.Value(1)).current;
   const downScale = useRef(new Animated.Value(1)).current;
 
@@ -429,7 +435,7 @@ const SolutionVoteBar = ({
         <View style={{ flex: 1 }} />
         <View style={s.approvalPill}>
           <Text style={s.approvalPct}>{Math.round(upPct)}%</Text>
-          <Text style={s.approvalLabel}> approval</Text>
+          <Text style={s.approvalLabel}> {t('forum.approval')}</Text>
         </View>
       </View>
     </View>
@@ -443,6 +449,7 @@ const SolutionCard = ({
   solution: Solution;
   onVote: (id: string, dir: 'up' | 'down') => void;
 }) => {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const status = SOL_STATUS[solution.status];
   const accentColor = solution.tags[0] ? SOL_TAG[solution.tags[0]].color : B.purpleLight;
@@ -455,7 +462,7 @@ const SolutionCard = ({
     >
       {solution.pinned && (
         <View style={s.pinnedBar}>
-          <Text style={s.pinnedText}>📌 Pinned · official org response</Text>
+          <Text style={s.pinnedText}>{t('forum.pinnedOfficial')}</Text>
         </View>
       )}
 
@@ -479,7 +486,7 @@ const SolutionCard = ({
       {/* Body — collapsible */}
       <Text style={s.solBody} numberOfLines={expanded ? undefined : 2}>{solution.body}</Text>
       <Text style={[s.expandToggle, { color: accentColor }]}>
-        {expanded ? '↑ show less' : '↓ read more'}
+        {expanded ? t('forum.showLess') : t('forum.readMore')}
       </Text>
 
       {/* Tags row */}
@@ -502,12 +509,13 @@ const SolutionCard = ({
 
 // ─── Solutions: Leaderboard / Podium ──────────────────────────────────────────
 const PODIUM_COLORS = [
-  { medal: '🥇', color: '#FBBF24', glow: 'rgba(251,191,36,0.35)', bg: 'rgba(251,191,36,0.1)', border: 'rgba(251,191,36,0.4)', label: 'GOLD' },
-  { medal: '🥈', color: '#CBD5E1', glow: 'rgba(203,213,225,0.2)', bg: 'rgba(203,213,225,0.07)', border: 'rgba(203,213,225,0.25)', label: 'SILVER' },
-  { medal: '🥉', color: '#FB923C', glow: 'rgba(251,146,60,0.2)', bg: 'rgba(251,146,60,0.08)', border: 'rgba(251,146,60,0.28)', label: 'BRONZE' },
+  { medal: '🥇', color: '#FBBF24', glow: 'rgba(251,191,36,0.35)', bg: 'rgba(251,191,36,0.1)', border: 'rgba(251,191,36,0.4)', labelKey: 'gold' },
+  { medal: '🥈', color: '#CBD5E1', glow: 'rgba(203,213,225,0.2)', bg: 'rgba(203,213,225,0.07)', border: 'rgba(203,213,225,0.25)', labelKey: 'silver' },
+  { medal: '🥉', color: '#FB923C', glow: 'rgba(251,146,60,0.2)', bg: 'rgba(251,146,60,0.08)', border: 'rgba(251,146,60,0.28)', labelKey: 'bronze' },
 ];
 
 const Leaderboard = ({ solutions }: { solutions: Solution[] }) => {
+  const { t } = useTranslation();
   const top3 = solutions
     .filter(s => s.weekLabel === 'This week')
     .sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes))
@@ -529,8 +537,8 @@ const Leaderboard = ({ solutions }: { solutions: Solution[] }) => {
           <Text style={s.lbHeaderEmoji}>🏆</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.lbHeaderTitle}>This Week's Champions</Text>
-          <Text style={s.lbHeaderSub}>Ranked by employee approval · resets Monday</Text>
+          <Text style={s.lbHeaderTitle}>{t('forum.weekChampions')}</Text>
+          <Text style={s.lbHeaderSub}>{t('forum.rankedByApproval')}</Text>
         </View>
       </View>
 
@@ -556,14 +564,14 @@ const Leaderboard = ({ solutions }: { solutions: Solution[] }) => {
               {/* Medal + rank label */}
               <View style={s.podiumTop}>
                 <Text style={[s.podiumMedal, isFirst && { fontSize: 28 }]}>{pd.medal}</Text>
-                <Text style={[s.podiumRankLabel, { color: pd.color }]}>{pd.label}</Text>
+                <Text style={[s.podiumRankLabel, { color: pd.color }]}>{t(`forum.medals.${pd.labelKey}`)}</Text>
               </View>
 
               {/* Big score */}
               <Text style={[s.podiumPct, { color: pd.color }, isFirst && { fontSize: 30 }]}>
                 {pct}<Text style={s.podiumPctSuffix}>%</Text>
               </Text>
-              <Text style={s.podiumApproval}>approval</Text>
+              <Text style={s.podiumApproval}>{t('forum.approval')}</Text>
 
               {/* Approval bar */}
               <View style={s.podiumBarTrack}>
@@ -595,6 +603,7 @@ const NewSolutionSheet = ({
   onClose: () => void;
   onPost: (title: string, body: string, tags: SolutionTag[]) => void;
 }) => {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [selectedTags, setSelectedTags] = useState<SolutionTag[]>([]);
@@ -632,32 +641,32 @@ const NewSolutionSheet = ({
               <Text style={{ fontSize: 18 }}>📋</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.sheetTitle}>Post a solution</Text>
-              <Text style={s.sheetSub}>Visible to all org members · signed as {ORG.name}</Text>
+              <Text style={s.sheetTitle}>{t('forum.postSolution')}</Text>
+              <Text style={s.sheetSub}>{t('forum.visibleSignedAs', { org: ORG.name })}</Text>
             </View>
             <Pressable onPress={onClose} hitSlop={12}>
               <Text style={{ fontSize: 20, color: B.muted }}>✕</Text>
             </Pressable>
           </View>
 
-          <Text style={s.tagLabel}>TITLE</Text>
+          <Text style={s.tagLabel}>{t('forum.titleLabel')}</Text>
           <View style={s.textWrap}>
             <TextInput
               value={title}
               onChangeText={setTitle}
-              placeholder="What issue does this address?"
+              placeholder={t('forum.titlePlaceholder')}
               placeholderTextColor={B.muted2}
               style={[s.textInput, { minHeight: 0 }]}
               maxLength={100}
             />
           </View>
 
-          <Text style={[s.tagLabel, { marginTop: 12 }]}>SOLUTION DETAILS</Text>
+          <Text style={[s.tagLabel, { marginTop: 12 }]}>{t('forum.solutionDetails')}</Text>
           <View style={s.textWrap}>
             <TextInput
               value={body}
               onChangeText={setBody}
-              placeholder="Describe the problem and exactly what you are doing about it..."
+              placeholder={t('forum.bodyPlaceholder')}
               placeholderTextColor={B.muted2}
               multiline
               numberOfLines={6}
@@ -670,7 +679,7 @@ const NewSolutionSheet = ({
             </Text>
           </View>
 
-          <Text style={[s.tagLabel, { marginTop: 12 }]}>TAG THE ISSUES</Text>
+          <Text style={[s.tagLabel, { marginTop: 12 }]}>{t('forum.tagIssues')}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 14 }}>
             {(Object.keys(SOL_TAG) as SolutionTag[]).map(tag => {
               const cfg = SOL_TAG[tag];
@@ -689,7 +698,7 @@ const NewSolutionSheet = ({
             })}
           </View>
 
-          <Text style={[s.tagLabel, { marginTop: 4 }]}>STATUS</Text>
+          <Text style={[s.tagLabel, { marginTop: 4 }]}>{t('forum.statusLabel')}</Text>
           <View style={{ flexDirection: 'row', gap: 7, marginBottom: 20 }}>
             {(Object.keys(SOL_STATUS) as SolutionStatus[]).map(st => {
               const cfg = SOL_STATUS[st];
@@ -713,7 +722,7 @@ const NewSolutionSheet = ({
             activeOpacity={0.88}
             style={[s.postBtn, { backgroundColor: B.purple, shadowColor: B.purple }, !canSubmit && { opacity: 0.35 }]}
           >
-            <Text style={s.postBtnText}>Post solution</Text>
+            <Text style={s.postBtnText}>{t('forum.postSolutionBtn')}</Text>
           </TouchableOpacity>
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -731,6 +740,7 @@ const SolutionsTab = ({
   isOrganization: boolean;
   onNewSolution: () => void;
 }) => {
+  const { t } = useTranslation();
   const thisWeek = solutions.filter(s => s.weekLabel === 'This week');
   const lastWeek = solutions.filter(s => s.weekLabel === 'Last week');
 
@@ -743,11 +753,11 @@ const SolutionsTab = ({
           <Text style={{ fontSize: 22 }}>✦</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.solHeroTitle}>Official Solutions</Text>
+          <Text style={s.solHeroTitle}>{t('forum.officialSolutions')}</Text>
           <Text style={s.solHeroSub}>
             {isOrganization
-              ? 'Respond to feedback with real action — only your org can post here'
-              : `Direct responses from ${ORG.name} leadership to issues raised this week`}
+              ? t('forum.heroSubOrg')
+              : t('forum.heroSubUser', { org: ORG.name })}
           </Text>
         </View>
       </View>
@@ -757,7 +767,7 @@ const SolutionsTab = ({
           <View style={s.readOnlyBanner}>
             <Text style={{ fontSize: 14 }}>👁️</Text>
             <Text style={s.readOnlyText}>
-              Solutions are posted by {ORG.name} leadership. You can vote to show support.
+              {t('forum.readOnlyHint', { org: ORG.name })}
             </Text>
           </View>
         )}
@@ -769,7 +779,7 @@ const SolutionsTab = ({
           <>
             <View style={s.weekLabel}>
               <View style={[s.weekDot, { backgroundColor: B.purpleLight }]} />
-              <Text style={[s.weekLabelText, { color: B.purpleLight }]}>This week · {thisWeek.length} solutions</Text>
+              <Text style={[s.weekLabelText, { color: B.purpleLight }]}>{t('forum.thisWeekSolutions', { count: thisWeek.length })}</Text>
             </View>
             {thisWeek
               .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
@@ -784,7 +794,7 @@ const SolutionsTab = ({
           <>
             <View style={[s.weekLabel, { marginTop: 6 }]}>
               <View style={[s.weekDot, { backgroundColor: B.muted }]} />
-              <Text style={[s.weekLabelText, { color: B.muted }]}>Last week · {lastWeek.length} solutions</Text>
+              <Text style={[s.weekLabelText, { color: B.muted }]}>{t('forum.lastWeekSolutions', { count: lastWeek.length })}</Text>
             </View>
             {lastWeek.map(sol => (
               <SolutionCard key={sol.id} solution={sol} onVote={onVote} />
@@ -807,6 +817,7 @@ const SolutionsTab = ({
 
 // ─── Main ForumScreen ─────────────────────────────────────────────────────────
 export const ForumScreen = () => {
+  const { t } = useTranslation();
   type ActiveTab = 'all' | 'trending' | 'recent' | 'solutions';
   const [activeTab, setActiveTab] = useState<ActiveTab>('all');
   const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
@@ -862,10 +873,10 @@ export const ForumScreen = () => {
 
   const isSolutions = activeTab === 'solutions';
 
-  const TABS: { key: ActiveTab; label: string }[] = [
-    { key: 'all',       label: 'All' },
-    { key: 'trending',  label: '🔥 Top' },
-    { key: 'recent',    label: '🕐 New' },
+  const TABS: { key: ActiveTab; labelKey: string }[] = [
+    { key: 'all',       labelKey: 'forum.tabAll' },
+    { key: 'trending',  labelKey: 'forum.tabTop' },
+    { key: 'recent',    labelKey: 'forum.tabNew' },
   ];
 
   return (
@@ -891,7 +902,7 @@ export const ForumScreen = () => {
                   style={[s.tabPill, active && s.tabPillActive]}
                 >
                   <Text style={[s.tabPillText, active && s.tabPillTextActive]}>
-                    {tab.label}
+                    {t(tab.labelKey)}
                   </Text>
                 </TouchableOpacity>
               );
@@ -908,7 +919,7 @@ export const ForumScreen = () => {
             style={[s.solTabBtn, isSolutions && s.solTabBtnActive]}
           >
             <Text style={s.solTabIcon}>✦</Text>
-            <Text style={[s.solTabLabel, isSolutions && s.solTabLabelActive]}>Solutions</Text>
+            <Text style={[s.solTabLabel, isSolutions && s.solTabLabelActive]}>{t('forum.solutionsTab')}</Text>
             <View style={[s.solCountBadge, isSolutions && s.solCountBadgeActive]}>
               <Text style={[s.solCountText, isSolutions && { color: '#fff' }]}>
                 {solutions.filter(s => s.weekLabel === 'This week').length}

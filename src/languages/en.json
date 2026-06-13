@@ -3,7 +3,8 @@
     "show": "Show",
     "hide": "Hide",
     "other": "Other",
-    "signIn": "Sign In"
+    "signIn": "Sign In",
+    "appTagline": "Mental Wellness Platform"
   },
   "auth": {
     "createSecureWorkspace": "Create Secure Workspace",
@@ -25,5 +26,143 @@
     "generateCredentials": "Generate Credentials",
     "zeroKnowledge": "Zero Knowledge Architecture",
     "alreadyTracking": "Already tracking accounts?"
+  },
+  "login": {
+    "welcomeBack": "Welcome back",
+    "signInToAccount": "Sign in to your account",
+    "protectedSession": "Protected Session",
+    "signIn": "Sign In",
+    "continueJourney": "Continue your wellness journey securely.",
+    "forgotPassword": "Forgot password?",
+    "endToEndEncrypted": "End-to-end encrypted",
+    "anonymousIdentity": "Anonymous identity",
+    "newToAbibeka": "New to Abibeka?",
+    "createAccount": "Create account"
+  },
+  "home": {
+  "aiName": "Abibeka AI",
+  "aiTagline": "\"I'm here whenever you need to talk.\"",
+  "chat": "Chat",
+  "aiAvailability": "Always available · Private",
+  "dailyCheckIn": "Daily check-in",
+  "doneForToday": "Done for today · see you tomorrow",
+  "takesThirtySec": "Takes 30 sec · due today",
+  "doneBadge": "✓ Done",
+  "thisWeek": "this wk",
+  "checkInNow": "✦ Check in now →",
+  "weekDays": {
+    "mon": "M",
+    "tue": "T",
+    "wed": "W",
+    "thu": "T",
+    "fri": "F",
+    "sat": "S",
+    "sun": "S"
+  },
+  "emotionBreakdown": "Emotion Breakdown",
+  "thisMonthTracked": "This month · {{count}} tracked",
+  "emotions": {
+    "happy": "Happy",
+    "calm": "Calm",
+    "sad": "Sad",
+    "anxious": "Anxious",
+    "stressed": "Stressed",
+    "neutral": "Neutral"
+  },
+  "moodTrend": "Mood Trend",
+"last7Days": "Last 7 days",
+"mostly": "Mostly {{mood}}",
+"today": "Today",
+"avgMood": "AVG MOOD",
+"thisWeekArrow": "↑ this week",
+"bestDay": "BEST DAY",
+"lowDay": "LOW DAY",
+"moods": {
+  "great": "Great",
+  "calm": "Calm",
+  "okay": "Okay",
+  "low": "Low",
+  "stressed": "Stressed"
+},
+"stressLevel": "Stress Level",
+"todayVsLast7": "Today vs last 7 days",
+"percentToday": "% today",
+"vsYesterday": "{{value}} vs yesterday",
+"sevenDayHistory": "7-DAY HISTORY",
+"now": "Now",
+"avgThisWeek": "AVG THIS WEEK",
+"rangeSuffix": "{{level}} range",
+"peakDay": "PEAK DAY",
+"calmestDay": "CALMEST DAY",
+"stressLevels": {
+  "low": "Low",
+  "moderate": "Moderate",
+  "high": "High"
+},
+"orgAccess": "Organization Access",
+"orgRequestPending": "{{org}} · Request pending",
+"pending": "PENDING",
+"orgAwaitingReview": "Awaiting admin review · Sent {{days}} days ago"
+},
+"chat": {
+  "greeting": "Hi there! I'm Abibeka. Ask me anything — I'm here to help, create, and explore with you.",
+  "aiAlwaysReady": "AI · Always ready",
+  "placeholder": "Message Abibeka…",
+  "disclaimerHint": "Abibeka can make mistakes. Verify important info.",
+  "tryAsking": "Try asking…",
+  "suggestions": {
+    "interesting": "Tell me something interesting",
+    "brainstorm": "Help me brainstorm ideas",
+    "poem": "Write a short poem",
+    "quantum": "Explain quantum computing"
+  },
+  "responses": {
+    "default": "That's a fascinating question! I'd love to explore this topic with you further. What aspect interests you most?",
+    "hello": "Hello! I'm Abibeka, your AI companion. I'm here to think, create, and explore ideas with you. What's on your mind?",
+    "poem": "Here's one for you:\n\nWords fall like rain at dusk,\nSilver threads on quiet glass—\nThoughts become the husk.",
+    "quantum": "Quantum computing harnesses quantum mechanics — superposition and entanglement — to process information in fundamentally different ways than classical computers. Instead of bits (0 or 1), it uses qubits that can exist in multiple states simultaneously, enabling certain calculations at extraordinary speed.",
+    "brainstorm": "Great! Let's ideate. What's the domain? A product, a story, a solution to a problem? Give me a seed and I'll help you grow a forest of ideas."
   }
+},
+"forum": {
+  "activeCount": "{{count}} active",
+  "shareAnonymously": "Share anonymously",
+  "visibleToOrgOnly": "🔒 Only visible to {{org}} members · your identity is hidden",
+  "postPlaceholder": "What's on your mind? You're anonymous here.",
+  "howAreYouFeeling": "How are you feeling?",
+  "hintBoth": "Write something and pick a mood to post",
+  "hintContent": "Write something to post",
+  "hintTag": "Pick a mood tag to post",
+  "postToForum": "Post to Forum",
+  "approval": "approval",
+  "pinnedOfficial": "📌 Pinned · official org response",
+  "showLess": "↑ show less",
+  "readMore": "↓ read more",
+  "weekChampions": "This Week's Champions",
+  "rankedByApproval": "Ranked by employee approval · resets Monday",
+  "medals": {
+    "gold": "GOLD",
+    "silver": "SILVER",
+    "bronze": "BRONZE"
+  },
+  "postSolution": "Post a solution",
+  "visibleSignedAs": "Visible to all org members · signed as {{org}}",
+  "titleLabel": "TITLE",
+  "titlePlaceholder": "What issue does this address?",
+  "solutionDetails": "SOLUTION DETAILS",
+  "bodyPlaceholder": "Describe the problem and exactly what you are doing about it...",
+  "tagIssues": "TAG THE ISSUES",
+  "statusLabel": "STATUS",
+  "postSolutionBtn": "Post solution",
+  "officialSolutions": "Official Solutions",
+  "heroSubOrg": "Respond to feedback with real action — only your org can post here",
+  "heroSubUser": "Direct responses from {{org}} leadership to issues raised this week",
+  "readOnlyHint": "Solutions are posted by {{org}} leadership. You can vote to show support.",
+  "thisWeekSolutions": "This week · {{count}} solutions",
+  "lastWeekSolutions": "Last week · {{count}} solutions",
+  "tabAll": "All",
+  "tabTop": "🔥 Top",
+  "tabNew": "🕐 New",
+  "solutionsTab": "Solutions"
+}
 }

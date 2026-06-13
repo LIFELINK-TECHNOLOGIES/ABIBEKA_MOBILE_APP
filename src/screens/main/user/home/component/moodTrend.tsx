@@ -7,6 +7,7 @@ import Svg, {
   Path,
   Stop,
 } from "react-native-svg";
+import { useTranslation } from "react-i18next";
 import Card from "./card";
 import {
   B,
@@ -25,6 +26,7 @@ const bestIdx = MOOD_TREND.indexOf(Math.max(...MOOD_TREND));
 const lowIdx  = MOOD_TREND.indexOf(Math.min(...MOOD_TREND));
 
 export default function MoodTrendCard({ anim }: { anim: Animated.Value }) {
+  const { t } = useTranslation();
   const progress = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
   const y = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
@@ -89,6 +91,9 @@ export default function MoodTrendCard({ anim }: { anim: Animated.Value }) {
     ` L ${points[points.length - 1].x} ${CH} L ${points[0].x} ${CH} Z`;
 
   const todayPoint = points[points.length - 1];
+  const avgMoodOpt = MOOD_OPTIONS[Math.round(avgMood)];
+  const bestMoodOpt = MOOD_OPTIONS[MOOD_TREND[bestIdx]];
+  const lowMoodOpt = MOOD_OPTIONS[MOOD_TREND[lowIdx]];
 
   return (
     <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
@@ -96,13 +101,14 @@ export default function MoodTrendCard({ anim }: { anim: Animated.Value }) {
         {/* ── Header ── */}
         <View style={s.head}>
           <View>
-            <Text style={s.title}>Mood Trend</Text>
-            <Text style={s.sub}>Last 7 days</Text>
+            <Text style={s.title}>{t('home.moodTrend')}</Text>
+            <Text style={s.sub}>{t('home.last7Days')}</Text>
           </View>
           <View style={s.avgPill}>
             <Text style={s.avgPillText}>
-              {MOOD_OPTIONS[Math.round(avgMood)]?.emoji ?? "😌"} Mostly{" "}
-              {MOOD_OPTIONS[Math.round(avgMood)]?.label?.toLowerCase() ?? "calm"}
+              {avgMoodOpt?.emoji ?? "😌"} {t('home.mostly', {
+                mood: avgMoodOpt ? t(`home.moods.${avgMoodOpt.key}`).toLowerCase() : t('home.moods.calm').toLowerCase()
+              })}
             </Text>
           </View>
         </View>
@@ -160,7 +166,7 @@ export default function MoodTrendCard({ anim }: { anim: Animated.Value }) {
                   i === DAY_LABELS.length - 1 && s.xLabelToday,
                 ]}
               >
-                {i === DAY_LABELS.length - 1 ? "Today" : d}
+                {i === DAY_LABELS.length - 1 ? t('home.today') : d}
               </Text>
             ))}
           </View>
@@ -181,33 +187,33 @@ export default function MoodTrendCard({ anim }: { anim: Animated.Value }) {
         {/* ── Stat strip ── */}
         <View style={s.statsRow}>
           <View style={s.statCard}>
-            <Text style={s.statLabel}>AVG MOOD</Text>
+            <Text style={s.statLabel}>{t('home.avgMood')}</Text>
             <Text style={s.statVal}>
               {(avgMood * 2.5).toFixed(1)}
               <Text style={s.statUnit}>/10</Text>
             </Text>
-            <Text style={[s.statSub, { color: B.accent }]}>↑ this week</Text>
+            <Text style={[s.statSub, { color: B.accent }]}>{t('home.thisWeekArrow')}</Text>
           </View>
 
           <View style={s.statCard}>
-            <Text style={s.statLabel}>BEST DAY</Text>
+            <Text style={s.statLabel}>{t('home.bestDay')}</Text>
             <Text style={[s.statVal, s.statValSm]}>
               {DAY_LABELS[bestIdx]}
             </Text>
             <Text style={s.statSub}>
-              {MOOD_OPTIONS[MOOD_TREND[bestIdx]]?.emoji}{" "}
-              {MOOD_OPTIONS[MOOD_TREND[bestIdx]]?.label}
+              {bestMoodOpt?.emoji}{" "}
+              {t(`home.moods.${bestMoodOpt.key}`)}
             </Text>
           </View>
 
           <View style={s.statCard}>
-            <Text style={s.statLabel}>LOW DAY</Text>
+            <Text style={s.statLabel}>{t('home.lowDay')}</Text>
             <Text style={[s.statVal, s.statValSm]}>
               {DAY_LABELS[lowIdx]}
             </Text>
             <Text style={s.statSub}>
-              {MOOD_OPTIONS[MOOD_TREND[lowIdx]]?.emoji}{" "}
-              {MOOD_OPTIONS[MOOD_TREND[lowIdx]]?.label}
+              {lowMoodOpt?.emoji}{" "}
+              {t(`home.moods.${lowMoodOpt.key}`)}
             </Text>
           </View>
         </View>

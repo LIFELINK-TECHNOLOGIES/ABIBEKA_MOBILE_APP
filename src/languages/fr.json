@@ -3,7 +3,8 @@
     "show": "Afficher",
     "hide": "Masquer",
     "other": "Autre",
-    "signIn": "Se connecter"
+    "signIn": "Se connecter",
+    "appTagline": "Plateforme de bien-être mental"
   },
   "auth": {
     "createSecureWorkspace": "Créer un espace sécurisé",
@@ -25,5 +26,143 @@
     "generateCredentials": "Générer des identifiants",
     "zeroKnowledge": "Architecture Zero Knowledge",
     "alreadyTracking": "Vous avez déjà un compte?"
+  },
+  "login": {
+    "welcomeBack": "Bon retour",
+    "signInToAccount": "Connectez-vous à votre compte",
+    "protectedSession": "Session protégée",
+    "signIn": "Se connecter",
+    "continueJourney": "Poursuivez votre parcours de bien-être en toute sécurité.",
+    "forgotPassword": "Mot de passe oublié?",
+    "endToEndEncrypted": "Chiffré de bout en bout",
+    "anonymousIdentity": "Identité anonyme",
+    "newToAbibeka": "Nouveau sur Abibeka?",
+    "createAccount": "Créer un compte"
+  },
+ "home": {
+  "aiName": "Abibeka AI",
+  "aiTagline": "\"Je suis là dès que vous avez besoin de parler.\"",
+  "chat": "Discuter",
+  "aiAvailability": "Toujours disponible · Privé",
+  "dailyCheckIn": "Suivi quotidien",
+  "doneForToday": "Terminé pour aujourd'hui · à demain",
+  "takesThirtySec": "30 sec · à faire aujourd'hui",
+  "doneBadge": "✓ Fait",
+  "thisWeek": "cette sem",
+  "checkInNow": "✦ Faire le suivi →",
+  "weekDays": {
+    "mon": "L",
+    "tue": "M",
+    "wed": "M",
+    "thu": "J",
+    "fri": "V",
+    "sat": "S",
+    "sun": "D"
+  },
+   "emotionBreakdown": "Répartition des émotions",
+  "thisMonthTracked": "Ce mois-ci · {{count}} suivies",
+  "emotions": {
+    "happy": "Heureux",
+    "calm": "Calme",
+    "sad": "Triste",
+    "anxious": "Anxieux",
+    "stressed": "Stressé",
+    "neutral": "Neutre"
+  },
+  "moodTrend": "Tendance d'humeur",
+"last7Days": "7 derniers jours",
+"mostly": "Surtout {{mood}}",
+"today": "Aujourd'hui",
+"avgMood": "HUMEUR MOY.",
+"thisWeekArrow": "↑ cette semaine",
+"bestDay": "MEILLEUR JOUR",
+"lowDay": "JOUR DIFFICILE",
+"moods": {
+  "great": "Super",
+  "calm": "Calme",
+  "okay": "Correct",
+  "low": "Bas",
+  "stressed": "Stressé"
+},
+"stressLevel": "Niveau de stress",
+"todayVsLast7": "Aujourd'hui vs 7 derniers jours",
+"percentToday": "% aujourd'hui",
+"vsYesterday": "{{value}} vs hier",
+"sevenDayHistory": "HISTORIQUE 7 JOURS",
+"now": "Maint.",
+"avgThisWeek": "MOY. CETTE SEM.",
+"rangeSuffix": "Plage {{level}}",
+"peakDay": "JOUR DE PIC",
+"calmestDay": "JOUR LE PLUS CALME",
+"stressLevels": {
+  "low": "Faible",
+  "moderate": "Modéré",
+  "high": "Élevé"
+},
+"orgAccess": "Accès organisation",
+"orgRequestPending": "{{org}} · Demande en attente",
+"pending": "EN ATTENTE",
+"orgAwaitingReview": "En attente de révision par l'admin · Envoyé il y a {{days}} jours"
+},
+"chat": {
+  "greeting": "Bonjour ! Je suis Abibeka. Posez-moi n'importe quelle question — je suis là pour aider, créer et explorer avec vous.",
+  "aiAlwaysReady": "IA · Toujours prête",
+  "placeholder": "Message à Abibeka…",
+  "disclaimerHint": "Abibeka peut faire des erreurs. Vérifiez les infos importantes.",
+  "tryAsking": "Essayez de demander…",
+  "suggestions": {
+    "interesting": "Dis-moi quelque chose d'intéressant",
+    "brainstorm": "Aide-moi à brainstormer des idées",
+    "poem": "Écris un court poème",
+    "quantum": "Explique l'informatique quantique"
+  },
+  "responses": {
+    "default": "C'est une question fascinante ! J'aimerais explorer ce sujet avec vous davantage. Quel aspect vous intéresse le plus ?",
+    "hello": "Bonjour ! Je suis Abibeka, votre compagnon IA. Je suis là pour réfléchir, créer et explorer des idées avec vous. Qu'avez-vous en tête ?",
+    "poem": "En voici un pour vous :\n\nLes mots tombent comme la pluie au crépuscule,\nFils d'argent sur le verre tranquille—\nLes pensées deviennent l'écorce.",
+    "quantum": "L'informatique quantique exploite la mécanique quantique — superposition et intrication — pour traiter l'information d'une manière fondamentalement différente des ordinateurs classiques. Au lieu de bits (0 ou 1), elle utilise des qubits pouvant exister dans plusieurs états simultanément, permettant certains calculs à une vitesse extraordinaire.",
+    "brainstorm": "Parfait ! Lançons-nous. Quel est le domaine ? Un produit, une histoire, une solution à un problème ? Donnez-moi une graine et je vous aiderai à faire grandir une forêt d'idées."
   }
+},
+"forum": {
+  "activeCount": "{{count}} actifs",
+  "shareAnonymously": "Partager anonymement",
+  "visibleToOrgOnly": "🔒 Visible uniquement par les membres de {{org}} · votre identité est cachée",
+  "postPlaceholder": "À quoi pensez-vous ? Vous êtes anonyme ici.",
+  "howAreYouFeeling": "Comment vous sentez-vous ?",
+  "hintBoth": "Écrivez quelque chose et choisissez une humeur pour publier",
+  "hintContent": "Écrivez quelque chose pour publier",
+  "hintTag": "Choisissez une humeur pour publier",
+  "postToForum": "Publier sur le forum",
+  "approval": "approbation",
+  "pinnedOfficial": "📌 Épinglé · réponse officielle de l'org",
+  "showLess": "↑ voir moins",
+  "readMore": "↓ lire plus",
+  "weekChampions": "Champions de la semaine",
+  "rankedByApproval": "Classé par approbation des employés · réinitialisé lundi",
+  "medals": {
+    "gold": "OR",
+    "silver": "ARGENT",
+    "bronze": "BRONZE"
+  },
+  "postSolution": "Publier une solution",
+  "visibleSignedAs": "Visible par tous les membres · signé par {{org}}",
+  "titleLabel": "TITRE",
+  "titlePlaceholder": "Quel problème cela résout-il ?",
+  "solutionDetails": "DÉTAILS DE LA SOLUTION",
+  "bodyPlaceholder": "Décrivez le problème et exactement ce que vous faites à ce sujet...",
+  "tagIssues": "ÉTIQUETER LES PROBLÈMES",
+  "statusLabel": "STATUT",
+  "postSolutionBtn": "Publier la solution",
+  "officialSolutions": "Solutions officielles",
+  "heroSubOrg": "Répondez aux retours avec des actions concrètes — seule votre org peut publier ici",
+  "heroSubUser": "Réponses directes de la direction de {{org}} aux problèmes soulevés cette semaine",
+  "readOnlyHint": "Les solutions sont publiées par la direction de {{org}}. Vous pouvez voter pour montrer votre soutien.",
+  "thisWeekSolutions": "Cette semaine · {{count}} solutions",
+  "lastWeekSolutions": "Semaine dernière · {{count}} solutions",
+  "tabAll": "Tout",
+  "tabTop": "🔥 Top",
+  "tabNew": "🕐 Nouveau",
+  "solutionsTab": "Solutions"
+}
 }

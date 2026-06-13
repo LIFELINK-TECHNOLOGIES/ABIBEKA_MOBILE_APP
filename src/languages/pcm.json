@@ -3,7 +3,8 @@
     "show": "Show",
     "hide": "Hide",
     "other": "Other",
-    "signIn": "Sign In"
+    "signIn": "Sign In",
+    "appTagline": "Mental Wellness Platform"
   },
   "auth": {
     "createSecureWorkspace": "Create Secure Workspace o",
@@ -25,5 +26,143 @@
     "generateCredentials": "Generate Credentials",
     "zeroKnowledge": "Zero Knowledge Architecture",
     "alreadyTracking": "You don get account before?"
+  },
+  "login": {
+    "welcomeBack": "You don come back",
+    "signInToAccount": "Sign in to your account",
+    "protectedSession": "Protected Session",
+    "signIn": "Sign In",
+    "continueJourney": "Continue your wellness journey, e secure well well.",
+    "forgotPassword": "You forget password?",
+    "endToEndEncrypted": "E dey encrypted from start to finish",
+    "anonymousIdentity": "Nobody go know say na you",
+    "newToAbibeka": "You never use Abibeka before?",
+    "createAccount": "Create account"
+  },
+ "home": {
+  "aiName": "Abibeka AI",
+  "aiTagline": "\"I dey here anytime you wan talk.\"",
+  "chat": "Chat",
+  "aiAvailability": "I dey available always · Private",
+  "dailyCheckIn": "Daily check-in",
+  "doneForToday": "You don do am for today · see you tomorrow",
+  "takesThirtySec": "Na 30 sec · you go do am today",
+  "doneBadge": "✓ Don do",
+  "thisWeek": "dis wk",
+  "checkInNow": "✦ Check in now →",
+  "weekDays": {
+    "mon": "M",
+    "tue": "T",
+    "wed": "W",
+    "thu": "T",
+    "fri": "F",
+    "sat": "S",
+    "sun": "S"
+  },
+   "emotionBreakdown": "How Your Mood Dey Spread",
+  "thisMonthTracked": "Dis month · {{count}} dem track",
+  "emotions": {
+    "happy": "Happy",
+    "calm": "Cool",
+    "sad": "Sad",
+    "anxious": "Anxious",
+    "stressed": "Stress",
+    "neutral": "Normal"
+  },
+  "moodTrend": "Mood Trend",
+"last7Days": "Las 7 days",
+"mostly": "Mostly {{mood}}",
+"today": "Today",
+"avgMood": "AVG MOOD",
+"thisWeekArrow": "↑ dis week",
+"bestDay": "BEST DAY",
+"lowDay": "LOW DAY",
+"moods": {
+  "great": "Great",
+  "calm": "Cool",
+  "okay": "Okay",
+  "low": "Low",
+  "stressed": "Stress"
+},
+"stressLevel": "Stress Level",
+"todayVsLast7": "Today vs las 7 days",
+"percentToday": "% today",
+"vsYesterday": "{{value}} pass yesterday",
+"sevenDayHistory": "7-DAY HISTORY",
+"now": "Now",
+"avgThisWeek": "AVG DIS WEEK",
+"rangeSuffix": "{{level}} range",
+"peakDay": "PEAK DAY",
+"calmestDay": "CALMEST DAY",
+"stressLevels": {
+  "low": "Low",
+  "moderate": "Moderate",
+  "high": "High"
+},
+"orgAccess": "Organization Access",
+"orgRequestPending": "{{org}} · Request dey pending",
+"pending": "PENDING",
+"orgAwaitingReview": "We dey wait for admin to check · We send am {{days}} days ago"
+},
+"chat": {
+  "greeting": "How far! Na Abibeka be dis. Ask me anything — I dey here to help, create, and explore with you.",
+  "aiAlwaysReady": "AI · Always ready",
+  "placeholder": "Message Abibeka…",
+  "disclaimerHint": "Abibeka fit make mistake sometimes. Verify important info.",
+  "tryAsking": "Try ask…",
+  "suggestions": {
+    "interesting": "Tell me something interesting",
+    "brainstorm": "Help me brainstorm ideas",
+    "poem": "Write short poem",
+    "quantum": "Explain quantum computing"
+  },
+  "responses": {
+    "default": "Dat na fascinating question! I go like explore dis topic well well with you. Wetin interest you pass?",
+    "hello": "How far! Na Abibeka be dis, your AI companion. I dey here to think, create, and explore ideas with you. Wetin dey your mind?",
+    "poem": "Here na one for you:\n\nWords dey fall like rain for evening,\nSilver thread on quiet glass—\nThoughts don become di husk.",
+    "quantum": "Quantum computing dey use quantum mechanics — superposition and entanglement — to process information in way wey different from normal computers. Instead of bits (0 or 1), e dey use qubits wey fit dey multiple states at once, dis dey make some calculations sharp sharp.",
+    "brainstorm": "Correct! Make we ideate. Wetin be di domain? Product, story, or solution to problem? Give me one seed and I go help you grow forest of ideas."
   }
+},
+"forum": {
+  "activeCount": "{{count}} dey active",
+  "shareAnonymously": "Share am anonymously",
+  "visibleToOrgOnly": "🔒 Na only {{org}} members fit see am · nobody go know say na you",
+  "postPlaceholder": "Wetin dey your mind? You dey anonymous here.",
+  "howAreYouFeeling": "How you dey feel?",
+  "hintBoth": "Write something and pick mood before you fit post",
+  "hintContent": "Write something before you fit post",
+  "hintTag": "Pick mood tag before you fit post",
+  "postToForum": "Post to Forum",
+  "approval": "approval",
+  "pinnedOfficial": "📌 Pinned · official org response",
+  "showLess": "↑ show less",
+  "readMore": "↓ read more",
+  "weekChampions": "Dis Week Champions",
+  "rankedByApproval": "Dem rank am by employee approval · e go reset Monday",
+  "medals": {
+    "gold": "GOLD",
+    "silver": "SILVER",
+    "bronze": "BRONZE"
+  },
+  "postSolution": "Post solution",
+  "visibleSignedAs": "All org members fit see am · {{org}} sign am",
+  "titleLabel": "TITLE",
+  "titlePlaceholder": "Wetin be di issue dis dey address?",
+  "solutionDetails": "SOLUTION DETAILS",
+  "bodyPlaceholder": "Explain di problem and wetin you dey do about am exactly...",
+  "tagIssues": "TAG DI ISSUES",
+  "statusLabel": "STATUS",
+  "postSolutionBtn": "Post solution",
+  "officialSolutions": "Official Solutions",
+  "heroSubOrg": "Respond to feedback with real action — na only your org fit post here",
+  "heroSubUser": "Direct response from {{org}} leadership to issues wey dem raise dis week",
+  "readOnlyHint": "{{org}} leadership dey post solutions. You fit vote to show support.",
+  "thisWeekSolutions": "Dis week · {{count}} solutions",
+  "lastWeekSolutions": "Las week · {{count}} solutions",
+  "tabAll": "All",
+  "tabTop": "🔥 Top",
+  "tabNew": "🕐 New",
+  "solutionsTab": "Solutions"
+}
 }

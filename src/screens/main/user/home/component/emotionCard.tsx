@@ -1,10 +1,12 @@
 import React from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path, Text as SvgText } from "react-native-svg";
+import { useTranslation } from "react-i18next";
 import Card from "./card";
 import { B, EMOTIONS } from "../../../../../constant/them";
 
 export default function EmotionCard({ anim }: { anim: Animated.Value }) {
+  const { t } = useTranslation();
   const y = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
   const SIZE = 130;
   const cx = SIZE / 2,
@@ -31,9 +33,9 @@ export default function EmotionCard({ anim }: { anim: Animated.Value }) {
   return (
     <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
       <Card>
-        <Text style={styles.cardTitle}>Emotion Breakdown</Text>
+        <Text style={styles.cardTitle}>{t('home.emotionBreakdown')}</Text>
         <Text style={[styles.cardSub, { marginBottom: 18 }]}>
-          This month · {EMOTIONS.length} tracked
+          {t('home.thisMonthTracked', { count: EMOTIONS.length })}
         </Text>
         <View style={styles.donutRow}>
           <Svg width={SIZE} height={SIZE}>
@@ -73,7 +75,7 @@ export default function EmotionCard({ anim }: { anim: Animated.Value }) {
               fill="rgba(240,244,255,0.45)"
               fontSize={10}
             >
-              {dominant.label}
+              {t(`home.emotions.${dominant.key}`)}
             </SvgText>
           </Svg>
           <View style={styles.donutLegend}>
@@ -91,7 +93,7 @@ export default function EmotionCard({ anim }: { anim: Animated.Value }) {
                     <View
                       style={[styles.legendDot, { backgroundColor: e.color }]}
                     />
-                    <Text style={styles.legendLabel}>{e.label}</Text>
+                    <Text style={styles.legendLabel}>{t(`home.emotions.${e.key}`)}</Text>
                     <Text style={[styles.legendPct, { color: e.color }]}>
                       {e.pct}%
                     </Text>

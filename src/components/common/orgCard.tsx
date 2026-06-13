@@ -1,9 +1,11 @@
 import React from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import Card from "../../screens/main/user/home/component/card";
 import { B } from "../../constant/them";
 
 export default function OrgCard({ anim }: { anim: Animated.Value }) {
+  const { t } = useTranslation();
   const y = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
   return (
     <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
@@ -13,18 +15,18 @@ export default function OrgCard({ anim }: { anim: Animated.Value }) {
             <Text style={{ fontSize: 20 }}>🏢</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.cardTitle}>Organization Access</Text>
-            <Text style={styles.cardSub}>TechCorp Ltd · Request pending</Text>
+            <Text style={styles.cardTitle}>{t('home.orgAccess')}</Text>
+            <Text style={styles.cardSub}>{t('home.orgRequestPending', { org: 'TechCorp Ltd' })}</Text>
           </View>
           <View style={styles.orgPendingBadge}>
-            <Text style={styles.orgPendingText}>PENDING</Text>
+            <Text style={styles.orgPendingText}>{t('home.pending')}</Text>
           </View>
         </View>
         <View style={styles.orgTrack}>
           <View style={styles.orgFill} />
         </View>
         <Text style={styles.orgHint}>
-          Awaiting admin review · Sent 2 days ago
+          {t('home.orgAwaitingReview', { days: 2 })}
         </Text>
       </Card>
     </Animated.View>

@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import Card from "./card";
 import { B, STRESS_VALS, DAY_LABELS } from "../../../../../constant/them";
 
-const getStressLabel = (v: number) =>
-  v >= 70 ? "High" : v >= 50 ? "Moderate" : "Low";
+const getStressLevel = (v: number) =>
+  v >= 70 ? "high" : v >= 50 ? "moderate" : "low";
 
 const getStressColor = (v: number, b: typeof B) =>
   v >= 70 ? b.red : v >= 50 ? b.amber : b.accent;
@@ -20,6 +21,7 @@ const calmIdx  = STRESS_VALS.indexOf(calmVal);
 const MAX_H    = 64;
 
 export default function StressCard({ anim }: { anim: Animated.Value }) {
+  const { t } = useTranslation();
   const y          = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
   const gaugeAnim  = useRef(new Animated.Value(0)).current;
   const barAnims   = STRESS_VALS.map(() => useRef(new Animated.Value(0)).current);
@@ -61,8 +63,8 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
         {/* ── Header ── */}
         <View style={s.head}>
           <View>
-            <Text style={s.title}>Stress Level</Text>
-            <Text style={s.sub}>Today vs last 7 days</Text>
+            <Text style={s.title}>{t('home.stressLevel')}</Text>
+            <Text style={s.sub}>{t('home.todayVsLast7')}</Text>
           </View>
           <View
             style={[
@@ -74,7 +76,7 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
             ]}
           >
             <Text style={[s.badgeText, { color: stressColor }]}>
-              {getStressLabel(current)}
+              {t(`home.stressLevels.${getStressLevel(current)}`)}
             </Text>
           </View>
         </View>
@@ -84,10 +86,10 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
           <Text style={[s.bigNum, { color: stressColor }]}>{current}</Text>
           <View style={s.bigRight}>
             <Text style={[s.bigLabel, { color: stressColor + "CC" }]}>
-              % today
+              {t('home.percentToday')}
             </Text>
             <Text style={s.bigDelta}>
-              {delta >= 0 ? "↑" : "↓"} {Math.abs(delta)} vs yesterday
+              {delta >= 0 ? "↑" : "↓"} {t('home.vsYesterday', { value: Math.abs(delta) })}
             </Text>
           </View>
         </View>
@@ -105,16 +107,16 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
           />
         </View>
         <View style={s.gaugeLabels}>
-          <Text style={s.gaugeLabelText}>Low</Text>
-          <Text style={s.gaugeLabelText}>Moderate</Text>
-          <Text style={s.gaugeLabelText}>High</Text>
+          <Text style={s.gaugeLabelText}>{t('home.stressLevels.low')}</Text>
+          <Text style={s.gaugeLabelText}>{t('home.stressLevels.moderate')}</Text>
+          <Text style={s.gaugeLabelText}>{t('home.stressLevels.high')}</Text>
         </View>
 
         {/* ── Divider ── */}
         <View style={s.divider} />
 
         {/* ── Bar history ── */}
-        <Text style={s.historyLabel}>7-DAY HISTORY</Text>
+        <Text style={s.historyLabel}>{t('home.sevenDayHistory')}</Text>
         <View style={s.barRow}>
           {STRESS_VALS.map((v, i) => {
             const isToday = i === STRESS_VALS.length - 1;
@@ -142,7 +144,7 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
                     isToday && { color: stressColor, fontWeight: "700" },
                   ]}
                 >
-                  {isToday ? "Now" : DAY_LABELS[i]}
+                  {isToday ? t('home.now') : DAY_LABELS[i]}
                 </Text>
               </View>
             );
@@ -152,27 +154,27 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
         {/* ── Stat strip ── */}
         <View style={s.statRow}>
           <View style={s.statCard}>
-            <Text style={s.statLabel}>AVG THIS WEEK</Text>
+            <Text style={s.statLabel}>{t('home.avgThisWeek')}</Text>
             <Text style={s.statVal}>
               {avg}
               <Text style={s.statUnit}>%</Text>
             </Text>
-            <Text style={s.statSub}>{getStressLabel(avg)} range</Text>
+            <Text style={s.statSub}>{t('home.rangeSuffix', { level: t(`home.stressLevels.${getStressLevel(avg)}`) })}</Text>
           </View>
 
           <View style={s.statCard}>
-            <Text style={s.statLabel}>PEAK DAY</Text>
+            <Text style={s.statLabel}>{t('home.peakDay')}</Text>
             <Text style={[s.statVal, s.statValSm]}>{DAY_LABELS[peakIdx]}</Text>
             <Text style={[s.statSub, { color: B.red + "CC" }]}>
-              {peakVal}% · High
+              {peakVal}% · {t('home.stressLevels.high')}
             </Text>
           </View>
 
           <View style={s.statCard}>
-            <Text style={s.statLabel}>CALMEST DAY</Text>
+            <Text style={s.statLabel}>{t('home.calmestDay')}</Text>
             <Text style={[s.statVal, s.statValSm]}>{DAY_LABELS[calmIdx]}</Text>
             <Text style={[s.statSub, { color: B.accent + "CC" }]}>
-              {calmVal}% · Low
+              {calmVal}% · {t('home.stressLevels.low')}
             </Text>
           </View>
         </View>

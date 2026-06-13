@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import Card from "./card";
 import { B } from "../../../../../constant/them";
 
@@ -14,56 +15,60 @@ import { B } from "../../../../../constant/them";
 const HAS_CHECKED_IN = false;
 
 type DayStatus = "checked" | "today" | "future" | "missed";
-const WEEK: { label: string; status: DayStatus }[] = [
-  { label: "M", status: "checked" },
-  { label: "T", status: "checked" },
-  { label: "W", status: "checked" },
-  { label: "T", status: "checked" },
-  { label: "F", status: "today" },
-  { label: "S", status: "future" },
-  { label: "S", status: "future" },
+const WEEK_KEYS: { key: string; status: DayStatus }[] = [
+  { key: "mon", status: "checked" },
+  { key: "tue", status: "checked" },
+  { key: "wed", status: "checked" },
+  { key: "thu", status: "checked" },
+  { key: "fri", status: "today" },
+  { key: "sat", status: "future" },
+  { key: "sun", status: "future" },
 ];
 
-const StreakStrip = () => (
-  <View style={s.stripWrap}>
-    <View style={s.dayLabels}>
-      {WEEK.map((d, i) => (
-        <Text
-          key={i}
-          style={[
-            s.dayLabel,
-            d.status === "checked" && { color: B.accent },
-            d.status === "today" && {
-              color: HAS_CHECKED_IN ? B.accent : B.primary,
-              fontWeight: "700",
-            },
-          ]}
-        >
-          {d.label}
-        </Text>
-      ))}
+const StreakStrip = () => {
+  const { t } = useTranslation();
+  return (
+    <View style={s.stripWrap}>
+      <View style={s.dayLabels}>
+        {WEEK_KEYS.map((d, i) => (
+          <Text
+            key={i}
+            style={[
+              s.dayLabel,
+              d.status === "checked" && { color: B.accent },
+              d.status === "today" && {
+                color: HAS_CHECKED_IN ? B.accent : B.primary,
+                fontWeight: "700",
+              },
+            ]}
+          >
+            {t(`home.weekDays.${d.key}`)}
+          </Text>
+        ))}
+      </View>
+      <View style={s.dotRow}>
+        {WEEK_KEYS.map((d, i) => (
+          <View
+            key={i}
+            style={[
+              s.dot,
+              d.status === "checked" && { backgroundColor: B.accent },
+              d.status === "today" && {
+                backgroundColor: HAS_CHECKED_IN ? B.accent : B.primary,
+              },
+              (d.status === "future" || d.status === "missed") && {
+                backgroundColor: "rgba(255,255,255,0.07)",
+              },
+            ]}
+          />
+        ))}
+      </View>
     </View>
-    <View style={s.dotRow}>
-      {WEEK.map((d, i) => (
-        <View
-          key={i}
-          style={[
-            s.dot,
-            d.status === "checked" && { backgroundColor: B.accent },
-            d.status === "today" && {
-              backgroundColor: HAS_CHECKED_IN ? B.accent : B.primary,
-            },
-            (d.status === "future" || d.status === "missed") && {
-              backgroundColor: "rgba(255,255,255,0.07)",
-            },
-          ]}
-        />
-      ))}
-    </View>
-  </View>
-);
+  );
+};
 
 export default function CheckInCard({ anim }: { anim: Animated.Value }) {
+  const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const y = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
@@ -86,7 +91,7 @@ export default function CheckInCard({ anim }: { anim: Animated.Value }) {
     ).start();
   }, []);
 
-  const checkedCount = WEEK.filter((d) => d.status === "checked").length;
+  const checkedCount = WEEK_KEYS.filter((d) => d.status === "checked").length;
 
   return (
     <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
@@ -126,22 +131,22 @@ export default function CheckInCard({ anim }: { anim: Animated.Value }) {
           </View>
 
           <View style={{ flex: 1 }}>
-            <Text style={s.title}>Daily check-in</Text>
+            <Text style={s.title}>{t('home.dailyCheckIn')}</Text>
             <Text style={s.sub}>
               {HAS_CHECKED_IN
-                ? "Done for today · see you tomorrow"
-                : "Takes 30 sec · due today"}
+                ? t('home.doneForToday')
+                : t('home.takesThirtySec')}
             </Text>
           </View>
 
           {HAS_CHECKED_IN ? (
             <View style={s.doneBadge}>
-              <Text style={s.doneBadgeText}>✓ Done</Text>
+              <Text style={s.doneBadgeText}>{t('home.doneBadge')}</Text>
             </View>
           ) : (
             <View style={s.streakCount}>
               <Text style={s.streakNum}>{checkedCount}</Text>
-              <Text style={s.streakLabel}>this wk</Text>
+              <Text style={s.streakLabel}>{t('home.thisWeek')}</Text>
             </View>
           )}
         </View>
@@ -154,7 +159,7 @@ export default function CheckInCard({ anim }: { anim: Animated.Value }) {
             style={s.cta}
           >
             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-              <Text style={s.ctaText}>✦ Check in now →</Text>
+              <Text style={s.ctaText}>{t('home.checkInNow')}</Text>
             </Animated.View>
           </Pressable>
         )}

@@ -8,9 +8,11 @@ import {
   View,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { B } from "../../../../../constant/them";
 
 export default function AiCard({ anim }: { anim: Animated.Value }) {
+  const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const glow = useRef(new Animated.Value(0)).current;
   const y = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
@@ -52,20 +54,20 @@ export default function AiCard({ anim }: { anim: Animated.Value }) {
               <Text style={{ fontSize: 24 }}>🤖</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.aiName}>Abibeka AI</Text>
+              <Text style={styles.aiName}>{t('home.aiName')}</Text>
               <Text style={styles.aiSub}>
-                "I'm here whenever you need to talk."
+                {t('home.aiTagline')}
               </Text>
             </View>
             <View style={styles.aiBtn}>
-              <Text style={styles.aiBtnText}>Chat</Text>
+              <Text style={styles.aiBtnText}>{t('home.chat')}</Text>
             </View>
           </View>
           <View style={styles.aiFooter}>
             <View style={styles.aiStatus}>
               <View style={styles.aiDot} />
               <Text style={styles.aiStatusText}>
-                Always available · Private
+                {t('home.aiAvailability')}
               </Text>
             </View>
           </View>

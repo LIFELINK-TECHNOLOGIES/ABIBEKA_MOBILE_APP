@@ -13,6 +13,7 @@ import {
   StatusBar,
   SafeAreaView,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 
 const { width, height } = Dimensions.get("window");
 
@@ -212,58 +213,51 @@ const SendButton: React.FC<{ onPress: () => void; disabled: boolean }> = ({
 };
 
 // ─── Quick Suggestions ────────────────────────────────────────────────────────
-const SUGGESTIONS = [
-  "Tell me something interesting",
-  "Help me brainstorm ideas",
-  "Write a short poem",
-  "Explain quantum computing",
-];
+const SUGGESTION_KEYS = ["interesting", "brainstorm", "poem", "quantum"];
 
 const QuickSuggestions: React.FC<{ onSelect: (text: string) => void }> = ({
   onSelect,
-}) => (
-  <View style={styles.suggestionsContainer}>
-    <Text style={styles.suggestionsLabel}>Try asking…</Text>
-    <View style={styles.suggestionsRow}>
-      {SUGGESTIONS.map((s, i) => (
-        <TouchableOpacity
-          key={i}
-          style={styles.suggestionChip}
-          onPress={() => onSelect(s)}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.suggestionText}>{s}</Text>
-        </TouchableOpacity>
-      ))}
+}) => {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.suggestionsContainer}>
+      <Text style={styles.suggestionsLabel}>{t('chat.tryAsking')}</Text>
+      <View style={styles.suggestionsRow}>
+        {SUGGESTION_KEYS.map((key, i) => {
+          const text = t(`chat.suggestions.${key}`);
+          return (
+            <TouchableOpacity
+              key={i}
+              style={styles.suggestionChip}
+              onPress={() => onSelect(text)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.suggestionText}>{text}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
-  </View>
-);
-
-// ─── Mock AI Response ─────────────────────────────────────────────────────────
-const AI_RESPONSES: Record<string, string> = {
-  default:
-    "That's a fascinating question! I'd love to explore this topic with you further. What aspect interests you most?",
-  hello:
-    "Hello! I'm Abibeka, your AI companion. I'm here to think, create, and explore ideas with you. What's on your mind?",
-  poem: "Here's one for you:\n\n*Words fall like rain at dusk,\nSilver threads on quiet glass—\nThoughts become the husk.*",
-  quantum:
-    "Quantum computing harnesses quantum mechanics — superposition and entanglement — to process information in fundamentally different ways than classical computers. Instead of bits (0 or 1), it uses qubits that can exist in multiple states simultaneously, enabling certain calculations at extraordinary speed.",
-  brainstorm:
-    "Great! Let's ideate. What's the domain? A product, a story, a solution to a problem? Give me a seed and I'll help you grow a forest of ideas.",
+  );
 };
 
-const getMockResponse = (input: string): string => {
+// ─── Mock AI Response ─────────────────────────────────────────────────────────
+const getMockResponse = (input: string, t: (key: string) => string): string => {
   const lower = input.toLowerCase();
-  if (lower.includes("hello") || lower.includes("hi"))
-    return AI_RESPONSES.hello;
-  if (lower.includes("poem")) return AI_RESPONSES.poem;
-  if (lower.includes("quantum")) return AI_RESPONSES.quantum;
-  if (lower.includes("brainstorm")) return AI_RESPONSES.brainstorm;
-  return AI_RESPONSES.default;
+  if (lower.includes("hello") || lower.includes("hi") || lower.includes("salut") || lower.includes("bonjour"))
+    return t('chat.responses.hello');
+  if (lower.includes("poem") || lower.includes("poème"))
+    return t('chat.responses.poem');
+  if (lower.includes("quantum") || lower.includes("quantique"))
+    return t('chat.responses.quantum');
+  if (lower.includes("brainstorm"))
+    return t('chat.responses.brainstorm');
+  return t('chat.responses.default');
 };
 
 // ─── Header ───────────────────────────────────────────────────────────────────
 const ChatHeader: React.FC = () => {
+  const { t } = useTranslation();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -297,7 +291,7 @@ const ChatHeader: React.FC = () => {
         </View>
         <View>
           <Text style={styles.headerName}>Abibeka</Text>
-          <Text style={styles.headerStatus}>AI · Always ready</Text>
+          <Text style={styles.headerStatus}>{t('chat.aiAlwaysReady')}</Text>
         </View>
       </View>
       <TouchableOpacity style={styles.headerMenuBtn} activeOpacity={0.7}>
@@ -309,11 +303,12 @@ const ChatHeader: React.FC = () => {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 const AbibekaChatScreen: React.FC = () => {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "0",
       role: "ai",
-      text: "Hi there! I'm Abibeka. Ask me anything — I'm here to help, create, and explore with you.",
+      text: t('chat.greeting'),
       timestamp: new Date(),
     },
   ]);
@@ -369,7 +364,7 @@ const AbibekaChatScreen: React.FC = () => {
         const aiMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: "ai",
-          text: getMockResponse(content),
+          text: getMockResponse(content, t),
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, aiMsg]);
@@ -377,7 +372,7 @@ const AbibekaChatScreen: React.FC = () => {
         scrollToBottom();
       }, delay);
     },
-    [inputText],
+    [inputText, t],
   );
 
   const showSuggestions = messages.length <= 1 && !isTyping;
@@ -434,7 +429,7 @@ const AbibekaChatScreen: React.FC = () => {
               style={styles.input}
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Message Abibeka…"
+              placeholder={t('chat.placeholder')}
               placeholderTextColor="#4a4a6a"
               multiline
               maxLength={1000}
@@ -448,7 +443,7 @@ const AbibekaChatScreen: React.FC = () => {
             />
           </View>
           <Text style={styles.inputHint}>
-            Abibeka can make mistakes. Verify important info.
+            {t('chat.disclaimerHint')}
           </Text>
         </View>
       </KeyboardAvoidingView>
