@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Easing,
   Pressable,
@@ -22,6 +23,7 @@ import {
 } from "./components/card";
 import { AiInsightCard, SubmitCard } from "./components/result";
 import { QuestionsCard } from "./components/auestionCard";
+import { useSubmitCheckIn } from "../../../../api/hooks/shared/moodEntry"
 
 // ─── Responsive helpers ───────────────────────────────────────────────────────
 const BASE_W = 390;
@@ -299,6 +301,8 @@ export default function AssessmentScreen({
   const scrollRef = useRef<ScrollView>(null);
   const cardAnim  = useRef(new Animated.Value(0)).current;
 
+  const { mutate: submitCheckIn, isPending: isSubmitting } = useSubmitCheckIn();
+
   useEffect(() => {
     cardAnim.setValue(0);
     Animated.spring(cardAnim, {
@@ -324,6 +328,36 @@ export default function AssessmentScreen({
 
   const update = (patch: Partial<AssessmentState>) =>
     setState((prev) => ({ ...prev, ...patch }));
+
+  const handleSubmit = () => {
+    if (state.mood === null) {
+      Alert.alert("Almost done", "Please select your mood before submitting.");
+      return;
+    }
+
+    submitCheckIn(
+      {
+        mood: state.mood,
+        emotions: state.emotions,
+        energy: state.energy,
+        stress: state.stress,
+        situations: state.situations,
+        answers: state.answers,
+      },
+      {
+        onSuccess: () => {
+          setSubmitted(true);
+          onComplete?.(state);
+        },
+        onError: (err: any) => {
+          Alert.alert(
+            "Error",
+            err?.response?.data?.message || "Failed to save your check-in. Please try again."
+          );
+        },
+      }
+    );
+  };
 
   const cardStyle = {
     opacity: cardAnim,
@@ -470,11 +504,9 @@ export default function AssessmentScreen({
             sub="Your check-in has been recorded anonymously."
           >
             <SubmitCard
-              onSubmit={() => {
-                setSubmitted(true);
-                onComplete?.(state);
-              }}
+              onSubmit={handleSubmit}
               submitted={submitted}
+              isSubmitting={isSubmitting}
             />
           </StepShell>
         );

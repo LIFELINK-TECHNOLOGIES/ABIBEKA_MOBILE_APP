@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, Easing, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import Card from "./card";
-import { B, STRESS_VALS, DAY_LABELS } from "../../../../../constant/them";
+import { B, DAY_LABELS } from "../../../../../constant/them";
+import { useMoodDashboard } from "../../../../../api/hooks/shared/moodEntry"; 
 
 const getStressLevel = (v: number) =>
   v >= 70 ? "high" : v >= 50 ? "moderate" : "low";
@@ -10,27 +11,43 @@ const getStressLevel = (v: number) =>
 const getStressColor = (v: number, b: typeof B) =>
   v >= 70 ? b.red : v >= 50 ? b.amber : b.accent;
 
-const current  = STRESS_VALS[STRESS_VALS.length - 1];
-const prev     = STRESS_VALS[STRESS_VALS.length - 2];
-const delta    = current - prev;
-const avg      = Math.round(STRESS_VALS.reduce((a, b) => a + b, 0) / STRESS_VALS.length);
-const peakVal  = Math.max(...STRESS_VALS);
-const peakIdx  = STRESS_VALS.indexOf(peakVal);
-const calmVal  = Math.min(...STRESS_VALS);
-const calmIdx  = STRESS_VALS.indexOf(calmVal);
-const MAX_H    = 64;
+const getDayLabel = (dateStr: string): string => {
+  const days = ["S", "M", "T", "W", "T", "F", "S"];
+  return days[new Date(dateStr).getDay()];
+};
+
+const MAX_H = 64;
 
 export default function StressCard({ anim }: { anim: Animated.Value }) {
   const { t } = useTranslation();
-  const y          = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
-  const gaugeAnim  = useRef(new Animated.Value(0)).current;
-  const barAnims   = STRESS_VALS.map(() => useRef(new Animated.Value(0)).current);
+  const y = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
+  const gaugeAnim = useRef(new Animated.Value(0)).current;
+
+  const { data, isLoading } = useMoodDashboard(7);
+
+  const daily = data?.data?.stress?.daily ?? [];
+  // Convert backend stress (0-10) to percentage (0-100)
+  const stressVals = daily.map((d) => Math.round(d.value * 10));
+  const dayLabels = daily.map((d) => getDayLabel(d.date));
+
+  const barAnims = stressVals.map(() => useRef(new Animated.Value(0)).current);
+
+  const current = stressVals.length > 0 ? stressVals[stressVals.length - 1] : 0;
+  const prev = stressVals.length > 1 ? stressVals[stressVals.length - 2] : current;
+  const delta = current - prev;
+  const avg = stressVals.length > 0
+    ? Math.round(stressVals.reduce((a, b) => a + b, 0) / stressVals.length)
+    : 0;
+  const peakVal = stressVals.length > 0 ? Math.max(...stressVals) : 0;
+  const peakIdx = stressVals.indexOf(peakVal);
+  const calmVal = stressVals.length > 0 ? Math.min(...stressVals) : 0;
+  const calmIdx = stressVals.indexOf(calmVal);
 
   const stressColor = getStressColor(current, B);
 
   useEffect(() => {
     const listener = anim.addListener(({ value }) => {
-      if (value > 0.6) {
+      if (value > 0.6 && stressVals.length > 0) {
         Animated.timing(gaugeAnim, {
           toValue: current / 100,
           duration: 1000,
@@ -50,12 +67,44 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
       }
     });
     return () => anim.removeListener(listener);
-  }, []);
+  }, [stressVals.length]);
 
   const gaugeW = gaugeAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0%", "100%"],
   });
+
+  if (isLoading) {
+    return (
+      <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
+        <Card>
+          <View style={{ paddingVertical: 40, alignItems: "center" }}>
+            <ActivityIndicator color={B.primary} />
+          </View>
+        </Card>
+      </Animated.View>
+    );
+  }
+
+  if (stressVals.length === 0) {
+    return (
+      <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
+        <Card>
+          <View style={s.head}>
+            <View>
+              <Text style={s.title}>{t('home.stressLevel')}</Text>
+              <Text style={s.sub}>{t('home.todayVsLast7')}</Text>
+            </View>
+          </View>
+          <View style={{ paddingVertical: 30, alignItems: "center" }}>
+            <Text style={{ color: B.muted, fontSize: 13 }}>
+              No data yet — complete a check-in
+            </Text>
+          </View>
+        </Card>
+      </Animated.View>
+    );
+  }
 
   return (
     <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
@@ -118,8 +167,8 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
         {/* ── Bar history ── */}
         <Text style={s.historyLabel}>{t('home.sevenDayHistory')}</Text>
         <View style={s.barRow}>
-          {STRESS_VALS.map((v, i) => {
-            const isToday = i === STRESS_VALS.length - 1;
+          {stressVals.map((v, i) => {
+            const isToday = i === stressVals.length - 1;
             const c       = getStressColor(v, B);
             const h       = Math.max(4, (v / 100) * MAX_H);
             return (
@@ -144,7 +193,7 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
                     isToday && { color: stressColor, fontWeight: "700" },
                   ]}
                 >
-                  {isToday ? t('home.now') : DAY_LABELS[i]}
+                  {isToday ? t('home.now') : dayLabels[i]}
                 </Text>
               </View>
             );
@@ -164,7 +213,7 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
 
           <View style={s.statCard}>
             <Text style={s.statLabel}>{t('home.peakDay')}</Text>
-            <Text style={[s.statVal, s.statValSm]}>{DAY_LABELS[peakIdx]}</Text>
+            <Text style={[s.statVal, s.statValSm]}>{dayLabels[peakIdx]}</Text>
             <Text style={[s.statSub, { color: B.red + "CC" }]}>
               {peakVal}% · {t('home.stressLevels.high')}
             </Text>
@@ -172,7 +221,7 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
 
           <View style={s.statCard}>
             <Text style={s.statLabel}>{t('home.calmestDay')}</Text>
-            <Text style={[s.statVal, s.statValSm]}>{DAY_LABELS[calmIdx]}</Text>
+            <Text style={[s.statVal, s.statValSm]}>{dayLabels[calmIdx]}</Text>
             <Text style={[s.statSub, { color: B.accent + "CC" }]}>
               {calmVal}% · {t('home.stressLevels.low')}
             </Text>

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, Easing, StyleSheet, Text, View } from "react-native";
 import Svg, {
   Circle,
   Defs,
@@ -11,7 +11,6 @@ import { useTranslation } from "react-i18next";
 import Card from "./card";
 import {
   B,
-  MOOD_TREND,
   MOOD_OPTIONS,
   MOOD_COLORS_TREND,
   DAY_LABELS,
@@ -19,17 +18,37 @@ import {
   PAD,
 } from "../../../../../constant/them";
 import { CARD_W } from "./layout";
+import { useMoodDashboard } from "../../../../../api/hooks/shared/moodEntry"
 
-// ─── Derived stats from trend data ───────────────────────────────────────────
-const avgMood = (MOOD_TREND.reduce((a, b) => a + b, 0) / MOOD_TREND.length);
-const bestIdx = MOOD_TREND.indexOf(Math.max(...MOOD_TREND));
-const lowIdx  = MOOD_TREND.indexOf(Math.min(...MOOD_TREND));
+// ─── Map AssessmentScreen's 7-point mood scale (0-6) to home's 5-point scale (0-4) ──
+// AssessmentScreen MOODS: 0 Great, 1 Calm, 2 Okay, 3 Sad, 4 Tearful, 5 Frustrated, 6 Overwhelmed
+// Home MOOD_OPTIONS:      0 Great, 1 Calm, 2 Okay, 3 Low,  4 Stressed
+const mapMoodTo5Scale = (mood7: number): number => {
+  const map: Record<number, number> = {
+    0: 0, // Great -> Great
+    1: 1, // Calm -> Calm
+    2: 2, // Okay -> Okay
+    3: 3, // Sad -> Low
+    4: 3, // Tearful -> Low
+    5: 4, // Frustrated -> Stressed
+    6: 4, // Overwhelmed -> Stressed
+  };
+  return map[mood7] ?? 2;
+};
+
+// Get short day label (M, T, W, T, F, S, S) from an ISO date string
+const getDayLabel = (dateStr: string): string => {
+  const days = ["S", "M", "T", "W", "T", "F", "S"];
+  return days[new Date(dateStr).getDay()];
+};
 
 export default function MoodTrendCard({ anim }: { anim: Animated.Value }) {
   const { t } = useTranslation();
   const progress = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
   const y = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
+
+  const { data, isLoading } = useMoodDashboard(7); // last 7 days
 
   useEffect(() => {
     const listener = anim.addListener(({ value }) => {
@@ -63,19 +82,65 @@ export default function MoodTrendCard({ anim }: { anim: Animated.Value }) {
     return () => anim.removeListener(listener);
   }, []);
 
+  if (isLoading) {
+    return (
+      <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
+        <Card>
+          <View style={{ paddingVertical: 40, alignItems: "center" }}>
+            <ActivityIndicator color={B.primary} />
+          </View>
+        </Card>
+      </Animated.View>
+    );
+  }
+
+  const daily = data?.data?.moodTrend?.daily ?? [];
+
+  // No check-ins yet — show empty state
+  if (daily.length === 0) {
+    return (
+      <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
+        <Card>
+          <View style={s.head}>
+            <View>
+              <Text style={s.title}>{t('home.moodTrend')}</Text>
+              <Text style={s.sub}>{t('home.last7Days')}</Text>
+            </View>
+          </View>
+          <View style={{ paddingVertical: 30, alignItems: "center" }}>
+            <Text style={{ color: B.muted, fontSize: 13 }}>
+              No check-ins yet this week
+            </Text>
+          </View>
+        </Card>
+      </Animated.View>
+    );
+  }
+
+  // Build a 7-slot array (Mon-Sun), filling gaps with null for missing days
+  const moodTrend5Scale = daily.map((d) => mapMoodTo5Scale(d.mood));
+  const dayLabels = daily.map((d) => getDayLabel(d.date));
+
+  const avgMood = moodTrend5Scale.reduce((a, b) => a + b, 0) / moodTrend5Scale.length;
+  const bestIdx = moodTrend5Scale.indexOf(Math.min(...moodTrend5Scale)); // lowest index = best mood
+  const lowIdx = moodTrend5Scale.indexOf(Math.max(...moodTrend5Scale)); // highest index = worst mood
+
   const chartW = CARD_W - 36 - PAD * 2;
-  const stepX  = chartW / (MOOD_TREND.length - 1);
+  const stepX = moodTrend5Scale.length > 1 ? chartW / (moodTrend5Scale.length - 1) : 0;
   const MAX_MOOD = 4;
 
-  const points = MOOD_TREND.map((v, i) => ({
+  const points = moodTrend5Scale.map((v, i) => ({
     x: PAD + i * stepX,
-    y: PAD + ((MAX_MOOD - v) / MAX_MOOD) * (CH - PAD * 2),
+    y: PAD + (v / MAX_MOOD) * (CH - PAD * 2),
     color: MOOD_COLORS_TREND[v],
     mood: MOOD_OPTIONS[v],
-    isToday: i === MOOD_TREND.length - 1,
+    isToday: i === moodTrend5Scale.length - 1,
   }));
 
   const smoothPath = (() => {
+    if (points.length === 1) {
+      return `M ${points[0].x} ${points[0].y}`;
+    }
     let d = `M ${points[0].x} ${points[0].y}`;
     for (let i = 1; i < points.length; i++) {
       const prev = points[i - 1];
@@ -91,9 +156,9 @@ export default function MoodTrendCard({ anim }: { anim: Animated.Value }) {
     ` L ${points[points.length - 1].x} ${CH} L ${points[0].x} ${CH} Z`;
 
   const todayPoint = points[points.length - 1];
-  const avgMoodOpt = MOOD_OPTIONS[Math.round(avgMood)];
-  const bestMoodOpt = MOOD_OPTIONS[MOOD_TREND[bestIdx]];
-  const lowMoodOpt = MOOD_OPTIONS[MOOD_TREND[lowIdx]];
+  const avgMoodOpt = MOOD_OPTIONS[Math.round(avgMood)] ?? MOOD_OPTIONS[2];
+  const bestMoodOpt = MOOD_OPTIONS[moodTrend5Scale[bestIdx]];
+  const lowMoodOpt = MOOD_OPTIONS[moodTrend5Scale[lowIdx]];
 
   return (
     <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
@@ -158,15 +223,15 @@ export default function MoodTrendCard({ anim }: { anim: Animated.Value }) {
 
           {/* X-axis labels */}
           <View style={[s.xRow, { paddingHorizontal: PAD }]}>
-            {DAY_LABELS.map((d, i) => (
+            {dayLabels.map((d, i) => (
               <Text
                 key={i}
                 style={[
                   s.xLabel,
-                  i === DAY_LABELS.length - 1 && s.xLabelToday,
+                  i === dayLabels.length - 1 && s.xLabelToday,
                 ]}
               >
-                {i === DAY_LABELS.length - 1 ? t('home.today') : d}
+                {i === dayLabels.length - 1 ? t('home.today') : d}
               </Text>
             ))}
           </View>
@@ -175,7 +240,7 @@ export default function MoodTrendCard({ anim }: { anim: Animated.Value }) {
           <View style={[s.emojiRow, { paddingHorizontal: PAD }]}>
             {points.map((p, i) => (
               <Text key={i} style={s.emoji}>
-                {p.mood.emoji}
+                {p.mood?.emoji ?? "😐"}
               </Text>
             ))}
           </View>
@@ -198,22 +263,22 @@ export default function MoodTrendCard({ anim }: { anim: Animated.Value }) {
           <View style={s.statCard}>
             <Text style={s.statLabel}>{t('home.bestDay')}</Text>
             <Text style={[s.statVal, s.statValSm]}>
-              {DAY_LABELS[bestIdx]}
+              {dayLabels[bestIdx]}
             </Text>
             <Text style={s.statSub}>
               {bestMoodOpt?.emoji}{" "}
-              {t(`home.moods.${bestMoodOpt.key}`)}
+              {bestMoodOpt ? t(`home.moods.${bestMoodOpt.key}`) : ""}
             </Text>
           </View>
 
           <View style={s.statCard}>
             <Text style={s.statLabel}>{t('home.lowDay')}</Text>
             <Text style={[s.statVal, s.statValSm]}>
-              {DAY_LABELS[lowIdx]}
+              {dayLabels[lowIdx]}
             </Text>
             <Text style={s.statSub}>
               {lowMoodOpt?.emoji}{" "}
-              {t(`home.moods.${lowMoodOpt.key}`)}
+              {lowMoodOpt ? t(`home.moods.${lowMoodOpt.key}`) : ""}
             </Text>
           </View>
         </View>

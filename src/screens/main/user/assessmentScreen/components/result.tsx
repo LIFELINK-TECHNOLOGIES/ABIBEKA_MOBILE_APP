@@ -225,9 +225,10 @@ export const AiInsightCard = ({
 interface SubmitCardProps {
   onSubmit: () => void;
   submitted: boolean;
+  isSubmitting?: boolean;
 }
 
-export const SubmitCard = ({ onSubmit, submitted }: SubmitCardProps) => {
+export const SubmitCard = ({ onSubmit, submitted, isSubmitting = false }: SubmitCardProps) => {
   const checkScale = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
 
@@ -243,6 +244,7 @@ export const SubmitCard = ({ onSubmit, submitted }: SubmitCardProps) => {
   }, [submitted]);
 
   const tap = () => {
+    if (isSubmitting) return;
     Animated.sequence([
       Animated.spring(btnScale, {
         toValue: 0.96,
@@ -272,10 +274,13 @@ export const SubmitCard = ({ onSubmit, submitted }: SubmitCardProps) => {
           <TouchableOpacity
             onPress={tap}
             activeOpacity={0.88}
-            style={s.submitBtn}
+            disabled={isSubmitting}
+            style={[s.submitBtn, isSubmitting && { opacity: 0.6 }]}
           >
-            <Text style={s.submitBtnText}>Complete Check-In</Text>
-            <Text style={{ fontSize: 18, color: "#fff" }}>✓</Text>
+            <Text style={s.submitBtnText}>
+              {isSubmitting ? "Saving..." : "Complete Check-In"}
+            </Text>
+            {!isSubmitting && <Text style={{ fontSize: 18, color: "#fff" }}>✓</Text>}
           </TouchableOpacity>
         </Animated.View>
       ) : (
