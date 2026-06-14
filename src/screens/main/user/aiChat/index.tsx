@@ -12,8 +12,13 @@ import {
   Dimensions,
   StatusBar,
   SafeAreaView,
+  Alert,
 } from "react-native";
 import { useTranslation } from "react-i18next";
+import {
+  useAiChatHistory,
+  useSendAiMessage,
+} from "../../../../api/hooks/shared/useAi";
 
 const { width, height } = Dimensions.get("window");
 
@@ -241,20 +246,6 @@ const QuickSuggestions: React.FC<{ onSelect: (text: string) => void }> = ({
   );
 };
 
-// ─── Mock AI Response ─────────────────────────────────────────────────────────
-const getMockResponse = (input: string, t: (key: string) => string): string => {
-  const lower = input.toLowerCase();
-  if (lower.includes("hello") || lower.includes("hi") || lower.includes("salut") || lower.includes("bonjour"))
-    return t('chat.responses.hello');
-  if (lower.includes("poem") || lower.includes("poème"))
-    return t('chat.responses.poem');
-  if (lower.includes("quantum") || lower.includes("quantique"))
-    return t('chat.responses.quantum');
-  if (lower.includes("brainstorm"))
-    return t('chat.responses.brainstorm');
-  return t('chat.responses.default');
-};
-
 // ─── Header ───────────────────────────────────────────────────────────────────
 const ChatHeader: React.FC = () => {
   const { t } = useTranslation();
@@ -304,16 +295,16 @@ const ChatHeader: React.FC = () => {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 const AbibekaChatScreen: React.FC = () => {
   const { t } = useTranslation();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "0",
-      role: "ai",
-      text: t('chat.greeting'),
-      timestamp: new Date(),
-    },
-  ]);
+
+  const { data: historyData, isLoading: isHistoryLoading } = useAiChatHistory();
+  const { mutate: sendAiMessage, isPending: isSending } = useSendAiMessage();
+
+  // Local message list — seeded from server history, with optimistic additions
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const hasSeededHistory = useRef(false);
+
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
   const headerOpacity = useRef(new Animated.Value(0)).current;
@@ -335,6 +326,32 @@ const AbibekaChatScreen: React.FC = () => {
     ]).start();
   }, []);
 
+  // Seed messages from fetched history (once, on first successful load)
+  useEffect(() => {
+    if (historyData?.data && !hasSeededHistory.current) {
+      if (historyData.data.length > 0) {
+        const mapped: Message[] = historyData.data.map((m) => ({
+          id: m.id,
+          role: m.role === "assistant" ? "ai" : "user",
+          text: m.content,
+          timestamp: new Date(m.createdAt),
+        }));
+        setMessages(mapped);
+      } else {
+        // No history yet — show greeting
+        setMessages([
+          {
+            id: "greeting",
+            role: "ai",
+            text: t("chat.greeting"),
+            timestamp: new Date(),
+          },
+        ]);
+      }
+      hasSeededHistory.current = true;
+    }
+  }, [historyData, t]);
+
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
@@ -342,40 +359,50 @@ const AbibekaChatScreen: React.FC = () => {
   }, []);
 
   const sendMessage = useCallback(
-    async (text?: string) => {
+    (text?: string) => {
       const content = (text ?? inputText).trim();
-      if (!content) return;
+      if (!content || isSending) return;
 
       const userMsg: Message = {
-        id: Date.now().toString(),
+        id: `temp-user-${Date.now()}`,
         role: "user",
         text: content,
         timestamp: new Date(),
       };
 
+      // Optimistically add the user's message
       setMessages((prev) => [...prev, userMsg]);
       setInputText("");
       setIsTyping(true);
       scrollToBottom();
 
-      // Simulate AI thinking delay
-      const delay = 1200 + Math.random() * 1000;
-      setTimeout(() => {
-        const aiMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          role: "ai",
-          text: getMockResponse(content, t),
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, aiMsg]);
-        setIsTyping(false);
-        scrollToBottom();
-      }, delay);
+      sendAiMessage(content, {
+        onSuccess: (response) => {
+          const aiMsg: Message = {
+            id: `temp-ai-${Date.now()}`,
+            role: "ai",
+            text: response.data.reply,
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, aiMsg]);
+          setIsTyping(false);
+          scrollToBottom();
+        },
+        onError: (err: any) => {
+          setIsTyping(false);
+          // Remove the optimistic user message on failure
+          setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+          Alert.alert(
+            "Message failed",
+            err?.response?.data?.message || "Couldn't reach the AI. Please try again."
+          );
+        },
+      });
     },
-    [inputText, t],
+    [inputText, isSending, sendAiMessage, scrollToBottom],
   );
 
-  const showSuggestions = messages.length <= 1 && !isTyping;
+  const showSuggestions = messages.length <= 1 && !isTyping && !isHistoryLoading;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -439,7 +466,7 @@ const AbibekaChatScreen: React.FC = () => {
             />
             <SendButton
               onPress={() => sendMessage()}
-              disabled={!inputText.trim() || isTyping}
+              disabled={!inputText.trim() || isTyping || isSending}
             />
           </View>
           <Text style={styles.inputHint}>
@@ -468,7 +495,6 @@ const styles = StyleSheet.create({
   },
   flex: { flex: 1 },
 
-  // Background layers
   bgLayer1: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: BG,
@@ -496,7 +522,6 @@ const styles = StyleSheet.create({
     left: -60,
   },
 
-  // Header
   container: { zIndex: 10 },
   header: {
     flexDirection: "row",
@@ -551,7 +576,6 @@ const styles = StyleSheet.create({
   },
   headerMenuIcon: { color: TEXT_MUTED, fontSize: 18, lineHeight: 20 },
 
-  // Messages
   messageList: {
     paddingHorizontal: 16,
     paddingTop: 20,
@@ -591,7 +615,6 @@ const styles = StyleSheet.create({
   timestampUser: { textAlign: "right" },
   timestampAi: { textAlign: "left" },
 
-  // Avatar
   avatar: {
     width: 34,
     height: 34,
@@ -631,7 +654,6 @@ const styles = StyleSheet.create({
   },
   avatarSmallText: { color: "#fff", fontWeight: "700", fontSize: 11 },
 
-  // Typing indicator
   typingBubble: {
     flexDirection: "row",
     alignItems: "center",
@@ -657,7 +679,6 @@ const styles = StyleSheet.create({
     backgroundColor: ACCENT,
   },
 
-  // Suggestions
   suggestionsContainer: { paddingHorizontal: 4, marginTop: 12 },
   suggestionsLabel: {
     color: TEXT_MUTED,
@@ -677,7 +698,6 @@ const styles = StyleSheet.create({
   },
   suggestionText: { color: TEXT, fontSize: 13 },
 
-  // Input bar
   inputBar: {
     paddingHorizontal: 16,
     paddingTop: 12,

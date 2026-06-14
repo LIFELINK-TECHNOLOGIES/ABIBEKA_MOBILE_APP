@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
+  Alert,
   Dimensions,
   Easing,
   KeyboardAvoidingView,
@@ -27,6 +29,7 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 import { useAuthStore } from "../../../store/authStore";
+import { useLogin } from "../../../api/hooks/shared/useAuth";
 
 const { width: W } = Dimensions.get("window");
 
@@ -256,8 +259,9 @@ export default function LoginScreen({
   const footerAnim = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
 
-  //store value
-  const login = useAuthStore((state) => state.login);
+  // Login mutation
+  const { mutate: loginUser, isPending } = useLogin();
+
   // Clean Navigation trigger handler
   const handleSignUpRedirect = () => {
     // Note: Double check that your Router navigator explicitly names this path exactly "SignUp"
@@ -330,6 +334,11 @@ export default function LoginScreen({
   }, []);
 
   const handleLogin = () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert(t('common.error') || "Error", t('login.fillAllFields') || "Please enter your email and password.");
+      return;
+    }
+
     Animated.sequence([
       Animated.spring(btnScale, {
         toValue: 0.96,
@@ -343,9 +352,21 @@ export default function LoginScreen({
         friction: 10,
         useNativeDriver: true,
       }),
-    ]).start(() => 
-    
-    login("employee")
+    ]).start();
+
+    loginUser(
+      { email: email.trim(), password },
+      {
+        onSuccess: () => {
+          onLogin?.();
+        },
+        onError: (err: any) => {
+          const message =
+            err?.response?.data?.message ||
+            "Invalid email or password. Please try again.";
+          Alert.alert(t('login.loginFailed') || "Login failed", message);
+        },
+      }
     );
   };
 
@@ -466,10 +487,14 @@ export default function LoginScreen({
                 <TouchableOpacity
                   onPress={handleLogin}
                   activeOpacity={0.88}
-                  style={styles.btn}
+                  disabled={isPending}
+                  style={[styles.btn, isPending && { opacity: 0.7 }]}
                 >
-                  <Text style={styles.btnText}>{t('login.signIn')}</Text>
-                  <View style={styles.btnDot} />
+                  <Text style={styles.btnText}>
+                    {isPending ? (t('login.signingIn') || "Signing in...") : t('login.signIn')}
+                  </Text>
+                  {!isPending && <View style={styles.btnDot} />}
+                  {isPending && <ActivityIndicator size="small" color="#fff" style={{ marginLeft: 10 }} />}
                 </TouchableOpacity>
               </Animated.View>
 

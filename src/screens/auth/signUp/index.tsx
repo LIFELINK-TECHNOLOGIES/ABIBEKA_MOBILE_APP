@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Animated,
   Dimensions,
   Easing,
@@ -27,7 +29,7 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 import { useAuthStore } from "../../../store/authStore";
-
+import { useRegister } from "../../../api/hooks/shared/useAuth";
 
 const BRAND = {
   primary: "#0F766E",
@@ -280,7 +282,6 @@ interface SignUpScreenProps {
 export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
   const { t, i18n } = useTranslation();
   const navigation = useNavigation();
-  console.log('current lang:', i18n.language, 'test key:', t('auth.getStarted'));
 
   // Flow State Switch: 'user' | 'org'
   const [accountType, setAccountType] = useState<"user" | "org">("user");
@@ -310,8 +311,8 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
     }).start();
   }, []);
 
-  //store value
-  const login = useAuthStore((state) => state.login);
+  // Register mutation
+  const { mutate: registerUser, isPending } = useRegister();
 
   // Soft content switch animation logic when context shifts
   const handleAccountTypeChange = (type: "user" | "org") => {
@@ -333,6 +334,46 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
   };
 
   const handleSignUp = () => {
+    // Basic validation
+    if (!email.trim() || !password.trim()) {
+      Alert.alert(t('common.error') || "Error", "Email and password are required.");
+      return;
+    }
+
+    if (accountType === "user" && !fullName.trim()) {
+      Alert.alert(t('common.error') || "Error", "Full name is required.");
+      return;
+    }
+
+    if (accountType === "org" && !orgName.trim()) {
+      Alert.alert(t('common.error') || "Error", "Organization name is required.");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert(t('common.error') || "Error", "Password must be at least 6 characters.");
+      return;
+    }
+
+    const payload =
+      accountType === "user"
+        ? {
+            role: "EMPLOYEE" as const,
+            fullName: fullName.trim(),
+            email: email.trim(),
+            password,
+          }
+        : {
+            role: "ORGANIZATION" as const,
+            organization: orgName.trim(),
+            email: email.trim(),
+            password,
+            cacNumber: cacNumber.trim(),
+            location: location.trim(),
+            employeeRange,
+            businessSector,
+          };
+
     Animated.sequence([
       Animated.spring(btnScale, {
         toValue: 0.96,
@@ -346,7 +387,15 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
         friction: 10,
         useNativeDriver: true,
       }),
-    ]).start(() => login("organization"));
+    ]).start();
+
+    registerUser(payload, {
+      onError: (err: any) => {
+        const message =
+          err?.response?.data?.message || "Something went wrong. Please try again.";
+        Alert.alert("Registration failed", message);
+      },
+    });
   };
 
   const contentTranslateY = formShiftAnim.interpolate({
@@ -560,10 +609,17 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
                 <TouchableOpacity
                   onPress={handleSignUp}
                   activeOpacity={0.88}
-                  style={styles.btn}
+                  disabled={isPending}
+                  style={[styles.btn, isPending && { opacity: 0.7 }]}
                 >
-                  <Text style={styles.btnText}>{t('auth.generateCredentials')}</Text>
-                  <View style={styles.btnDot} />
+                  <Text style={styles.btnText}>
+                    {isPending ? "Creating account..." : t('auth.generateCredentials')}
+                  </Text>
+                  {isPending ? (
+                    <ActivityIndicator size="small" color="#fff" style={{ marginLeft: 10 }} />
+                  ) : (
+                    <View style={styles.btnDot} />
+                  )}
                 </TouchableOpacity>
               </Animated.View>
 
