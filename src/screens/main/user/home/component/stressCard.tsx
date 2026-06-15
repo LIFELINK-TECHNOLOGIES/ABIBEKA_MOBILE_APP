@@ -3,7 +3,7 @@ import { ActivityIndicator, Animated, Easing, StyleSheet, Text, View } from "rea
 import { useTranslation } from "react-i18next";
 import Card from "./card";
 import { B, DAY_LABELS } from "../../../../../constant/them";
-import { useMoodDashboard } from "../../../../../api/hooks/shared/moodEntry"; 
+import { useMoodDashboard } from "../../../../../api/hooks/shared/moodEntry";
 
 const getStressLevel = (v: number) =>
   v >= 70 ? "high" : v >= 50 ? "moderate" : "low";
@@ -17,20 +17,27 @@ const getDayLabel = (dateStr: string): string => {
 };
 
 const MAX_H = 64;
+const MAX_BARS = 7;
 
 export default function StressCard({ anim }: { anim: Animated.Value }) {
   const { t } = useTranslation();
   const y = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
   const gaugeAnim = useRef(new Animated.Value(0)).current;
 
+  // ✅ Fixed: single ref holding a fixed-size array — hooks never called in a loop
+  const barAnimsRef = useRef<Animated.Value[]>([]);
+  if (barAnimsRef.current.length < MAX_BARS) {
+    for (let i = barAnimsRef.current.length; i < MAX_BARS; i++) {
+      barAnimsRef.current.push(new Animated.Value(0));
+    }
+  }
+  const barAnims = barAnimsRef.current;
+
   const { data, isLoading } = useMoodDashboard(7);
 
   const daily = data?.data?.stress?.daily ?? [];
-  // Convert backend stress (0-10) to percentage (0-100)
   const stressVals = daily.map((d) => Math.round(d.value * 10));
   const dayLabels = daily.map((d) => getDayLabel(d.date));
-
-  const barAnims = stressVals.map(() => useRef(new Animated.Value(0)).current);
 
   const current = stressVals.length > 0 ? stressVals[stressVals.length - 1] : 0;
   const prev = stressVals.length > 1 ? stressVals[stressVals.length - 2] : current;
@@ -55,8 +62,9 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
           useNativeDriver: false,
         }).start();
 
-        barAnims.forEach((a, i) =>
-          Animated.spring(a, {
+        // ✅ Fixed: iterate over stressVals length, index into pre-created barAnims array
+        stressVals.forEach((_, i) =>
+          Animated.spring(barAnims[i], {
             toValue: 1,
             delay: i * 55,
             tension: 60,
