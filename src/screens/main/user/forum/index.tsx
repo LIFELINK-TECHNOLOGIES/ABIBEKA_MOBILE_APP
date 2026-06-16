@@ -14,12 +14,16 @@ import {
   B,
   ORG,
   MOOD_TAGS,
-  INITIAL_POSTS,
   INITIAL_SOLUTIONS,
 } from './constants/constant';
-import type { Post, Solution, SolutionTag, SolutionStatus } from './constants/constant';
+import type { Solution, SolutionTag, SolutionStatus } from './constants/constant';
 import { SolutionsTab, NewSolutionSheet } from './components/solution';
 import { NoOrgScreen } from './components/Noorg';
+import {
+  useForumPosts,
+  useCreateForumPost,
+  useVoteForumPost,
+} from "../../../../api/hooks/employee/forum";
 
 // ─── Forum header ─────────────────────────────────────────────────────────────
 const ForumHeader = ({ activeToday }: { activeToday: number }) => {
@@ -46,50 +50,58 @@ const PostCard = ({
   post,
   onVote,
 }: {
-  post: Post;
+  post: {
+    id: string;
+    anonId: string;
+    content: string;
+    tags: string[];
+    upvotes: number;
+    downvotes: number;
+    userVote: 'up' | 'down' | null;
+    createdAt: string;
+  };
   onVote: (id: string, dir: 'up' | 'down') => void;
 }) => {
-  const upScale = useRef(new Animated.Value(1)).current;
+  const upScale   = useRef(new Animated.Value(1)).current;
   const downScale = useRef(new Animated.Value(1)).current;
 
   const vote = (dir: 'up' | 'down') => {
     const a = dir === 'up' ? upScale : downScale;
     Animated.sequence([
       Animated.spring(a, { toValue: 1.35, tension: 300, friction: 7, useNativeDriver: true }),
-      Animated.spring(a, { toValue: 1, tension: 300, friction: 7, useNativeDriver: true }),
+      Animated.spring(a, { toValue: 1,    tension: 300, friction: 7, useNativeDriver: true }),
     ]).start(() => onVote(post.id, dir));
   };
 
-  const upActive = post.userVote === 'up';
+  const upActive   = post.userVote === 'up';
   const downActive = post.userVote === 'down';
-  const score = post.upvotes - post.downvotes;
+  const score      = post.upvotes - post.downvotes;
+
+  const primaryTag = post.tags[0] ?? '';
+  const tagData    = MOOD_TAGS.find((t) => t.label === primaryTag);
+  const tagColor   = tagData?.color ?? B.muted;
 
   return (
     <View style={s.postWrap}>
       <View style={s.postTop}>
         <View style={s.postAvatar}>
-          <Text style={{ fontSize: 18 }}>{post.avatar}</Text>
+          <Text style={{ fontSize: 18 }}>🦊</Text>
         </View>
         <View style={{ flex: 1, gap: 3 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View
-              style={[
-                s.moodTag,
-                { borderColor: post.tagColor + '45', backgroundColor: post.tagColor + '12' },
-              ]}
-            >
-              <View style={[s.moodDot, { backgroundColor: post.tagColor }]} />
-              <Text style={[s.moodTagText, { color: post.tagColor }]}>{post.moodTag}</Text>
-            </View>
-            {post.trending && (
-              <View style={s.trendBadge}>
-                <Text style={{ fontSize: 11 }}>🔥</Text>
+            {primaryTag ? (
+              <View
+                style={[
+                  s.moodTag,
+                  { borderColor: tagColor + '45', backgroundColor: tagColor + '12' },
+                ]}
+              >
+                <View style={[s.moodDot, { backgroundColor: tagColor }]} />
+                <Text style={[s.moodTagText, { color: tagColor }]}>{primaryTag}</Text>
               </View>
-            )}
+            ) : null}
           </View>
-          <Text style={s.postMeta}>
-            {post.date} · {post.time}
-          </Text>
+          <Text style={s.postMeta}>{new Date(post.createdAt).toLocaleDateString()}</Text>
         </View>
       </View>
 
@@ -133,8 +145,7 @@ const PostCard = ({
             { color: score > 20 ? B.accent : score > 5 ? B.muted : B.muted2 },
           ]}
         >
-          {score > 0 ? '+' : ''}
-          {score}
+          {score > 0 ? '+' : ''}{score}
         </Text>
       </View>
 
@@ -148,15 +159,17 @@ const NewPostSheet = ({
   visible,
   onClose,
   onPost,
+  isPosting, // FIX 1: Accept isPosting prop to show loading state & prevent double-submit
 }: {
   visible: boolean;
   onClose: () => void;
   onPost: (content: string, tag: string) => void;
+  isPosting: boolean;
 }) => {
   const { t } = useTranslation();
   const [content, setContent] = useState('');
-  const [tag, setTag] = useState('');
-  const slide = useRef(new Animated.Value(700)).current;
+  const [tag, setTag]         = useState('');
+  const slide                 = useRef(new Animated.Value(700)).current;
   const [mounted, setMounted] = useState(false);
 
   React.useEffect(() => {
@@ -172,10 +185,15 @@ const NewPostSheet = ({
 
   if (!mounted) return null;
 
+  // FIX 2: Tag is now optional — only block submission if content is empty.
+  // Previously `!tag` caused silent no-op when user hadn't picked a mood tag.
+  const canSubmit = content.trim().length > 0 && !isPosting;
+
   const submit = () => {
-    if (!content.trim() || !tag) return;
-    onPost(content.trim(), tag);
-    onClose();
+    if (!canSubmit) return;
+    onPost(content.trim(), tag); // tag may be empty string — backend accepts tags: []
+    // FIX 3: Don't close immediately; parent closes via onSuccess so the user
+    // sees a loading state rather than the sheet vanishing before the post lands.
   };
 
   return (
@@ -190,8 +208,9 @@ const NewPostSheet = ({
           <Text style={s.sheetTitle}>{t('forum.shareAnonymously')}</Text>
           <Text style={s.sheetSub}>{t('forum.visibleToOrgOnly', { org: ORG.name })}</Text>
         </View>
-        <Pressable onPress={onClose} hitSlop={12}>
-          <Text style={{ fontSize: 20, color: B.muted }}>✕</Text>
+        {/* FIX 4: Disable close while posting so users can't dismiss mid-flight */}
+        <Pressable onPress={isPosting ? undefined : onClose} hitSlop={12}>
+          <Text style={{ fontSize: 20, color: isPosting ? B.muted2 : B.muted }}>✕</Text>
         </Pressable>
       </View>
 
@@ -204,11 +223,13 @@ const NewPostSheet = ({
           multiline
           numberOfLines={5}
           style={s.textInput}
-          maxLength={280}
+          maxLength={500} // FIX 5: Align with backend limit (was 280, backend allows 500)
           textAlignVertical="top"
+          editable={!isPosting}
         />
-        <Text style={[s.charCount, { color: content.length > 240 ? B.red : B.muted2 }]}>
-          {280 - content.length}
+        {/* FIX 6: Count down from 500 to match the actual backend constraint */}
+        <Text style={[s.charCount, { color: content.length > 450 ? B.red : B.muted2 }]}>
+          {500 - content.length}
         </Text>
       </View>
 
@@ -218,7 +239,7 @@ const NewPostSheet = ({
           {MOOD_TAGS.map((tg, i) => (
             <Pressable
               key={i}
-              onPress={() => setTag(tg.label === tag ? '' : tg.label)}
+              onPress={() => !isPosting && setTag(tg.label === tag ? '' : tg.label)}
               style={[
                 s.tagChip,
                 tag === tg.label && { borderColor: tg.color, backgroundColor: tg.color + '18' },
@@ -237,22 +258,21 @@ const NewPostSheet = ({
         </View>
       </ScrollView>
 
-      {(!content.trim() || !tag) && (
-        <Text style={s.postHint}>
-          {!content.trim() && !tag
-            ? t('forum.hintBoth')
-            : !content.trim()
-            ? t('forum.hintContent')
-            : t('forum.hintTag')}
-        </Text>
+      {/* FIX 7: Hint only blocks on missing content, not missing tag (tag is optional) */}
+      {!content.trim() && (
+        <Text style={s.postHint}>{t('forum.hintContent')}</Text>
       )}
 
       <TouchableOpacity
         onPress={submit}
         activeOpacity={0.88}
-        style={[s.postBtn, (!content.trim() || !tag) && { opacity: 0.35 }]}
+        disabled={!canSubmit}
+        style={[s.postBtn, !canSubmit && { opacity: 0.35 }]}
       >
-        <Text style={s.postBtnText}>{t('forum.postToForum')}</Text>
+        {/* FIX 8: Show loading text while mutation is in-flight */}
+        <Text style={s.postBtnText}>
+          {isPosting ? t('forum.posting') : t('forum.postToForum')}
+        </Text>
       </TouchableOpacity>
       <View style={{ height: 20 }} />
     </Animated.View>
@@ -267,7 +287,16 @@ const FeedTab = ({
   onVote,
   onNewPost,
 }: {
-  posts: Post[];
+  posts: {
+    id: string;
+    anonId: string;
+    content: string;
+    tags: string[];
+    upvotes: number;
+    downvotes: number;
+    userVote: 'up' | 'down' | null;
+    createdAt: string;
+  }[];
   onVote: (id: string, dir: 'up' | 'down') => void;
   onNewPost: () => void;
   filter: FeedFilter;
@@ -292,19 +321,26 @@ const FeedTab = ({
 export const ForumScreen = () => {
   const { t } = useTranslation();
 
-  // ── Set this from your auth/org context ──────────────────────────────────
-  const hasOrganization = false;   
-  const isOrganization  = true;   
-  // ─────────────────────────────────────────────────────────────────────────
+  const hasOrganization = true;
+  const isOrganization  = true;
 
   type ActiveTab = 'all' | 'trending' | 'recent' | 'solutions';
-  const [activeTab, setActiveTab] = useState<ActiveTab>('all');
-  const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
-  const [solutions, setSolutions] = useState<Solution[]>(INITIAL_SOLUTIONS);
-  const [showNewPost, setShowNewPost] = useState(false);
+  const [activeTab, setActiveTab]             = useState<ActiveTab>('all');
+  const [solutions, setSolutions]             = useState<Solution[]>(INITIAL_SOLUTIONS);
+  const [showNewPost, setShowNewPost]         = useState(false);
   const [showNewSolution, setShowNewSolution] = useState(false);
+  const [page]                                = useState(1);
 
-  // ── Guard: no org ─────────────────────────────────────────────────────────
+  const tagFilter = undefined;
+
+  const { data: postsData, isLoading: postsLoading } = useForumPosts(page, 20, tagFilter);
+  const { mutate: createPost, isPending: isPosting, error}  = useCreateForumPost();
+  const { mutate: votePost } = useVoteForumPost();
+  
+  console.log('ForumScreen render:', { postsData, isPosting, error });
+
+  const posts = postsData?.data ?? [];
+
   if (!hasOrganization) {
     return (
       <View style={{ flex: 1, backgroundColor: B.bg, paddingTop: 23 }}>
@@ -316,47 +352,27 @@ export const ForumScreen = () => {
     );
   }
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleVote = (id: string, dir: 'up' | 'down') => {
-    setPosts((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
-        return {
-          ...p,
-          upvotes:
-            dir === 'up'
-              ? p.upvotes + (p.userVote === 'up' ? -1 : 1)
-              : p.upvotes - (p.userVote === 'up' ? 1 : 0),
-          downvotes:
-            dir === 'down'
-              ? p.downvotes + (p.userVote === 'down' ? -1 : 1)
-              : p.downvotes - (p.userVote === 'down' ? 1 : 0),
-          userVote: p.userVote === dir ? null : dir,
-        };
-      }),
-    );
+    votePost({ id, type: dir });
   };
 
-  const handlePost = (content: string, tag: string) => {
-    const tagData = MOOD_TAGS.find((t) => t.label === tag) ?? { color: B.primary };
-    setPosts((prev) => [
-      {
-        id: String(Date.now()),
-        avatar: '🦊',
-        content,
-        moodTag: tag,
-        tagColor: tagData.color,
-        upvotes: 0,
-        downvotes: 0,
-        date: 'Today',
-        time: 'just now',
-        userVote: null,
-        trending: false,
-      },
-      ...prev,
-    ]);
-  };
+  // FIX 9: onSuccess closes the sheet — not the submit handler.
+  // This way the sheet stays open with the loading state until the server confirms.
+const handlePost = (content: string, tag: string) => {
+  const payload = { content, tags: tag ? [tag] : [] };
+  console.log('POST payload:', JSON.stringify(payload));
 
+  createPost(payload, {
+    onSuccess: () => setShowNewPost(false),
+    onError: (err: unknown) => {
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosErr = err as { response?: { data?: unknown; status?: number } };
+        console.log('400 response body:', JSON.stringify(axiosErr.response?.data));
+        console.log('400 status:', axiosErr.response?.status);
+      }
+    },
+  });
+};
   const handleSolutionVote = (id: string, dir: 'up' | 'down') => {
     setSolutions((prev) =>
       prev.map((sol) => {
@@ -457,12 +473,18 @@ export const ForumScreen = () => {
 
       {/* ── Content ── */}
       {!isSolutions ? (
-        <FeedTab
-          posts={posts}
-          onVote={handleVote}
-          onNewPost={() => setShowNewPost(true)}
-          filter={activeTab as FeedFilter}
-        />
+        postsLoading ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: B.muted }}>Loading...</Text>
+          </View>
+        ) : (
+          <FeedTab
+            posts={posts}
+            onVote={handleVote}
+            onNewPost={() => setShowNewPost(true)}
+            filter={activeTab as FeedFilter}
+          />
+        )
       ) : (
         <SolutionsTab
           solutions={solutions}
@@ -479,14 +501,22 @@ export const ForumScreen = () => {
             StyleSheet.absoluteFillObject,
             { backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 998 },
           ]}
-          onPress={() => { setShowNewPost(false); setShowNewSolution(false); }}
+          // FIX 11: Don't allow backdrop dismiss while a post is being submitted
+          onPress={() => {
+            if (!isPosting) {
+              setShowNewPost(false);
+              setShowNewSolution(false);
+            }
+          }}
         />
       )}
 
+      {/* FIX 12: Pass isPosting down so the sheet can reflect loading state */}
       <NewPostSheet
         visible={showNewPost}
         onClose={() => setShowNewPost(false)}
         onPost={handlePost}
+        isPosting={isPosting}
       />
 
       <NewSolutionSheet
@@ -522,8 +552,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  headerTitle: { fontSize: 14, fontWeight: '900', color: B.text, letterSpacing: -0.3 },
-  addressText: { fontSize: 10, color: B.muted2, marginTop: 1 },
+  headerTitle:  { fontSize: 14, fontWeight: '900', color: B.text, letterSpacing: -0.3 },
+  addressText:  { fontSize: 10, color: B.muted2, marginTop: 1 },
   activePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -535,18 +565,13 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: B.accent + '22',
   },
-  activeDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: B.accent },
+  activeDot:  { width: 5, height: 5, borderRadius: 3, backgroundColor: B.accent },
   activeText: { fontSize: 10, fontWeight: '700', color: B.accent },
 
   // Tab bar
-  tabBar: { borderBottomWidth: 1, borderBottomColor: B.border, backgroundColor: B.bg },
-  tabBarRow: { flexDirection: 'row', alignItems: 'center', paddingRight: 10 },
-  tabBarInner: {
-    flexDirection: 'row',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    gap: 6,
-  },
+  tabBar:      { borderBottomWidth: 1, borderBottomColor: B.border, backgroundColor: B.bg },
+  tabBarRow:   { flexDirection: 'row', alignItems: 'center', paddingRight: 10 },
+  tabBarInner: { flexDirection: 'row', paddingHorizontal: 14, paddingVertical: 9, gap: 6 },
   tabPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -558,13 +583,10 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: B.border,
   },
-  tabPillActive: {
-    backgroundColor: 'rgba(15,118,110,0.18)',
-    borderColor: 'rgba(15,118,110,0.35)',
-  },
-  tabPillText: { fontSize: 12, fontWeight: '600', color: B.muted },
+  tabPillActive:     { backgroundColor: 'rgba(15,118,110,0.18)', borderColor: 'rgba(15,118,110,0.35)' },
+  tabPillText:       { fontSize: 12, fontWeight: '600', color: B.muted },
   tabPillTextActive: { color: B.accent, fontWeight: '800' },
-  tabDivider: { width: 1, height: 22, backgroundColor: B.border, marginRight: 8 },
+  tabDivider:        { width: 1, height: 22, backgroundColor: B.border, marginRight: 8 },
 
   // Solutions tab button
   solTabBtn: {
@@ -587,9 +609,9 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     elevation: 6,
   },
-  solTabIcon: { fontSize: 13, color: B.purpleLight },
-  solTabLabel: { fontSize: 12, fontWeight: '800', color: B.purpleLight },
-  solTabLabelActive: { color: '#fff' },
+  solTabIcon:          { fontSize: 13, color: B.purpleLight },
+  solTabLabel:         { fontSize: 12, fontWeight: '800', color: B.purpleLight },
+  solTabLabelActive:   { color: '#fff' },
   solCountBadge: {
     backgroundColor: 'rgba(139,92,246,0.25)',
     borderRadius: 7,
@@ -599,11 +621,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   solCountBadgeActive: { backgroundColor: '#fff' },
-  solCountText: { fontSize: 9, fontWeight: '800', color: B.purpleLight },
+  solCountText:        { fontSize: 9, fontWeight: '800', color: B.purpleLight },
 
   // Post card
-  postWrap: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 4, backgroundColor: B.bg },
-  postTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
+  postWrap:    { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 4, backgroundColor: B.bg },
+  postTop:     { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
   postAvatar: {
     width: 38,
     height: 38,
@@ -623,7 +645,7 @@ const s = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
   },
-  moodDot: { width: 5, height: 5, borderRadius: 3 },
+  moodDot:     { width: 5, height: 5, borderRadius: 3 },
   moodTagText: { fontSize: 11, fontWeight: '700' },
   trendBadge: {
     width: 22,
@@ -633,7 +655,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  postMeta: { fontSize: 11, color: B.muted2, marginTop: 2 },
+  postMeta:    { fontSize: 11, color: B.muted2, marginTop: 2 },
   postContent: {
     fontSize: 15,
     color: B.text,
@@ -661,8 +683,8 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.02)',
   },
   voteEmoji: { fontSize: 14 },
-  voteCount: { fontSize: 13, color: B.muted, fontWeight: '600' },
-  scoreText: { fontSize: 12, fontWeight: '700' },
+  voteCount:  { fontSize: 13, color: B.muted, fontWeight: '600' },
+  scoreText:  { fontSize: 12, fontWeight: '700' },
   postDivider: { height: 1, backgroundColor: B.border, marginHorizontal: -18 },
 
   // FAB
@@ -717,7 +739,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   sheetTitle: { fontSize: 15, fontWeight: '800', color: B.text },
-  sheetSub: { fontSize: 11, color: B.muted, marginTop: 2 },
+  sheetSub:   { fontSize: 11, color: B.muted, marginTop: 2 },
   textWrap: {
     backgroundColor: 'rgba(255,255,255,0.03)',
     borderRadius: 14,
@@ -726,8 +748,8 @@ const s = StyleSheet.create({
     padding: 14,
     marginBottom: 18,
   },
-  textInput: { fontSize: 15, color: B.text, minHeight: 80, lineHeight: 23 },
-  charCount: { fontSize: 11, fontWeight: '700', textAlign: 'right', marginTop: 6 },
+  textInput:  { fontSize: 15, color: B.text, minHeight: 80, lineHeight: 23 },
+  charCount:  { fontSize: 11, fontWeight: '700', textAlign: 'right', marginTop: 6 },
   fieldLabel: {
     fontSize: 10,
     fontWeight: '700',
@@ -745,7 +767,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.03)',
   },
   tagChipText: { fontSize: 12, color: B.muted },
-  postHint: { fontSize: 12, color: B.amber, textAlign: 'center', marginBottom: 10 },
+  postHint:    { fontSize: 12, color: B.amber, textAlign: 'center', marginBottom: 10 },
   postBtn: {
     height: 52,
     borderRadius: 15,

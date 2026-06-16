@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Animated,
   Easing,
   Pressable,
@@ -10,12 +12,33 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { B } from "../constants/constant";
 import {
-  B,
-  DEPARTMENTS,
-  ORGANIZATIONS,
-  Organization,
-} from "../constants/constant";
+  useListOrganizations,
+  useRequestJoinOrganization,
+} from "../../../../../api/hooks/organization/organization"
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface OrgItem {
+  _id: string;
+  organization: string;
+  location: string;
+  businessSector: string;
+  employeeRange: string;
+}
+
+const DEPARTMENTS = [
+  "Engineering",
+  "Design",
+  "Product",
+  "Marketing",
+  "Sales",
+  "HR",
+  "Finance",
+  "Operations",
+  "Legal",
+  "Customer Support",
+];
 
 // ─── Landing step ─────────────────────────────────────────────────────────────
 const LandingStep = ({ onNext }: { onNext: () => void }) => {
@@ -87,11 +110,15 @@ const SearchStep = ({
   onSelect,
 }: {
   onBack: () => void;
-  onSelect: (org: Organization) => void;
+  onSelect: (org: OrgItem) => void;
 }) => {
   const [query, setQuery] = useState("");
-  const filtered = ORGANIZATIONS.filter((o) =>
-    o.name.toLowerCase().includes(query.toLowerCase()),
+  const { data: organizations = [], isLoading } = useListOrganizations();
+
+  const filtered = organizations.filter((o) =>
+    o.organization.toLowerCase().includes(query.toLowerCase()) ||
+    o.businessSector?.toLowerCase().includes(query.toLowerCase()) ||
+    o.location?.toLowerCase().includes(query.toLowerCase())
   );
 
   return (
@@ -103,12 +130,13 @@ const SearchStep = ({
         <Text style={s.stepTitle}>Find Organization</Text>
         <View style={{ width: 50 }} />
       </View>
+
       <View style={s.searchWrap}>
         <Text style={{ fontSize: 18 }}>🔍</Text>
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search by name…"
+          placeholder="Search by name, sector, or location…"
           placeholderTextColor={B.muted2}
           style={s.searchInput}
           autoFocus
@@ -119,35 +147,51 @@ const SearchStep = ({
           </Pressable>
         )}
       </View>
+
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 20, gap: 10 }}
         showsVerticalScrollIndicator={false}
       >
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <View style={{ paddingTop: 60, alignItems: "center" }}>
+            <ActivityIndicator color={B.primary} />
+            <Text style={{ color: B.muted, fontSize: 13, marginTop: 12 }}>
+              Loading organizations…
+            </Text>
+          </View>
+        ) : filtered.length === 0 ? (
           <View style={{ alignItems: "center", paddingTop: 60, gap: 12 }}>
             <Text style={{ fontSize: 40 }}>🔍</Text>
             <Text style={{ fontSize: 15, fontWeight: "700", color: B.text }}>
-              No results for "{query}"
+              {query.length > 0
+                ? `No results for "${query}"`
+                : "No organizations available"}
             </Text>
-            <Text style={{ fontSize: 13, color: B.muted, textAlign: "center" }}>
-              Try a different name or check with your HR team.
+            <Text
+              style={{ fontSize: 13, color: B.muted, textAlign: "center" }}
+            >
+              {query.length > 0
+                ? "Try a different name or check with your HR team."
+                : "Organizations will appear here once they register."}
             </Text>
           </View>
         ) : (
           filtered.map((org) => (
             <Pressable
-              key={org.id}
+              key={org._id}
               onPress={() => onSelect(org)}
               style={s.orgRow}
             >
               <View style={s.orgIcon}>
-                <Text style={{ fontSize: 24 }}>{org.icon}</Text>
+                <Text style={{ fontSize: 24 }}>🏢</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.orgName}>{org.name}</Text>
+                <Text style={s.orgName}>{org.organization}</Text>
                 <Text style={s.orgMeta}>
-                  {org.industry} · {org.members} members
+                  {org.businessSector}
+                  {org.location ? ` · ${org.location}` : ""}
+                  {org.employeeRange ? ` · ${org.employeeRange} employees` : ""}
                 </Text>
               </View>
               <Text style={{ color: B.muted, fontSize: 20 }}>›</Text>
@@ -164,21 +208,44 @@ const ConfirmStep = ({
   selected,
   onBack,
 }: {
-  selected: Organization;
+  selected: OrgItem;
   onBack: () => void;
 }) => {
   const [dept, setDept] = useState("");
   const [sent, setSent] = useState(false);
 
+  const { mutate: requestJoin, isPending } = useRequestJoinOrganization();
+
+  const handleSend = () => {
+    requestJoin(
+      {
+        organizationId: selected._id,
+        message: dept ? `Department: ${dept}` : "",
+      },
+      {
+        onSuccess: () => {
+          setSent(true);
+        },
+        onError: (err: any) => {
+          Alert.alert(
+            "Request failed",
+            err?.response?.data?.message || "Something went wrong. Please try again."
+          );
+        },
+      }
+    );
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <View style={s.stepHead}>
-        <Pressable onPress={onBack} hitSlop={10}>
-          <Text style={s.back}>← Back</Text>
+        <Pressable onPress={onBack} hitSlop={10} disabled={isPending}>
+          <Text style={[s.back, isPending && { opacity: 0.4 }]}>← Back</Text>
         </Pressable>
         <Text style={s.stepTitle}>Join Organization</Text>
         <View style={{ width: 50 }} />
       </View>
+
       <ScrollView
         contentContainerStyle={{ padding: 20, gap: 16 }}
         showsVerticalScrollIndicator={false}
@@ -187,7 +254,7 @@ const ConfirmStep = ({
         <View style={[s.card, { borderColor: B.primary + "30" }]}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
             <View style={s.confirmIcon}>
-              <Text style={{ fontSize: 28 }}>{selected.icon}</Text>
+              <Text style={{ fontSize: 28 }}>🏢</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text
@@ -198,10 +265,11 @@ const ConfirmStep = ({
                   marginBottom: 3,
                 }}
               >
-                {selected.name}
+                {selected.organization}
               </Text>
               <Text style={{ fontSize: 12, color: B.muted }}>
-                {selected.industry} · {selected.members} members
+                {selected.businessSector}
+                {selected.location ? ` · ${selected.location}` : ""}
               </Text>
             </View>
             <View style={s.verifiedBadge}>
@@ -279,14 +347,21 @@ const ConfirmStep = ({
 
         {!sent ? (
           <TouchableOpacity
-            onPress={() => setSent(true)}
+            onPress={handleSend}
             activeOpacity={0.88}
-            style={s.sendBtn}
+            disabled={isPending}
+            style={[s.sendBtn, isPending && { opacity: 0.6 }]}
           >
-            <Text style={{ fontSize: 16, fontWeight: "800", color: "#fff" }}>
-              Send Join Request
-            </Text>
-            <Text style={{ fontSize: 16, color: "#fff" }}>→</Text>
+            {isPending ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Text style={{ fontSize: 16, fontWeight: "800", color: "#fff" }}>
+                  Send Join Request
+                </Text>
+                <Text style={{ fontSize: 16, color: "#fff" }}>→</Text>
+              </>
+            )}
           </TouchableOpacity>
         ) : (
           <View style={s.sentCard}>
@@ -309,8 +384,8 @@ const ConfirmStep = ({
                 lineHeight: 20,
               }}
             >
-              Your request is with {selected.name}. You'll be notified once
-              approved — usually within 24 hours.
+              Your request is with {selected.organization}. You'll be notified
+              once approved — usually within 24 hours.
             </Text>
           </View>
         )}
@@ -324,7 +399,7 @@ type Step = "landing" | "search" | "confirm";
 
 export const NoOrgScreen = () => {
   const [step, setStep] = useState<Step>("landing");
-  const [selected, setSelected] = useState<Organization | null>(null);
+  const [selected, setSelected] = useState<OrgItem | null>(null);
   const cardAnim = useRef(new Animated.Value(0)).current;
   const fade = useRef(new Animated.Value(0)).current;
 
@@ -358,7 +433,7 @@ export const NoOrgScreen = () => {
     ],
   };
 
-  const handleSelect = (org: Organization) => {
+  const handleSelect = (org: OrgItem) => {
     setSelected(org);
     setStep("confirm");
   };
@@ -419,7 +494,7 @@ const s = StyleSheet.create({
     width: "47%",
     padding: 16,
     borderRadius: 18,
-    backgroundColor: B.card,
+    backgroundColor: B.surface,
     borderWidth: 1,
     borderColor: B.border,
   },
@@ -476,7 +551,7 @@ const s = StyleSheet.create({
     gap: 14,
     padding: 16,
     borderRadius: 16,
-    backgroundColor: B.card,
+    backgroundColor: B.surface,
     borderWidth: 1,
     borderColor: B.border,
   },
@@ -491,7 +566,7 @@ const s = StyleSheet.create({
   orgName: { fontSize: 14, fontWeight: "700", color: B.text, marginBottom: 3 },
   orgMeta: { fontSize: 12, color: B.muted },
   card: {
-    backgroundColor: B.card,
+    backgroundColor: B.surface,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: B.border,
@@ -525,9 +600,9 @@ const s = StyleSheet.create({
   privacyCard: {
     padding: 20,
     borderRadius: 18,
-    backgroundColor: B.secondary + "14",
+    backgroundColor: B.primary + "14",
     borderWidth: 1,
-    borderColor: B.secondary + "28",
+    borderColor: B.primary + "28",
     alignItems: "center",
   },
   sendBtn: {

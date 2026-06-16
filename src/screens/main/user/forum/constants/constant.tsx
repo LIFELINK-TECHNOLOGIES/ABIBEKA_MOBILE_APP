@@ -28,14 +28,14 @@ export const ORG = {
 
 // ─── Mood tags ────────────────────────────────────────────────────────────────
 export const MOOD_TAGS = [
-  { label: '😮 Surprised',  color: '#FBBF24' },
-  { label: '😤 Frustrated', color: '#F87171' },
-  { label: '😔 Low',        color: '#818CF8' },
-  { label: '😌 Calm',       color: B.accent },
-  { label: '😊 Happy',      color: B.green },
-  { label: '😰 Anxious',    color: '#FB923C' },
-  { label: '🔥 Burnout',    color: '#EF4444' },
-  { label: '💪 Motivated',  color: '#34D399' },
+  { label: 'Burnout',  color: '#FBBF24' },
+  { label: 'Motivated', color: '#F87171' },
+  { label: 'Overwhelmed',        color: '#818CF8' },
+  { label: 'Stressed',       color: B.accent },
+  { label: 'Anxious',      color: B.green },
+  { label: 'Grateful',    color: '#FB923C' },
+  { label: 'Productive',    color: '#EF4444' },
+  { label: 'Tired',  color: '#34D399' },
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
