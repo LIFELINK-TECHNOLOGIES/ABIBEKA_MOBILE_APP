@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { use, useRef, useState } from 'react';
 import {
   Animated,
   Pressable,
@@ -24,9 +24,13 @@ import {
   useCreateForumPost,
   useVoteForumPost,
 } from "../../../../api/hooks/employee/forum";
+import { useAuthStore } from '../../../../store/authStore';
 
 // ─── Forum header ─────────────────────────────────────────────────────────────
 const ForumHeader = ({ activeToday }: { activeToday: number }) => {
+  const Organization = useAuthStore((state) => state.user?.joinedOrganizationName);
+  const Org_address = useAuthStore((state) => state.user?.location);
+  const Employee_range = useAuthStore((state) => state.user?.employeeRange);
   const { t } = useTranslation();
   return (
     <View style={s.header}>
@@ -34,12 +38,12 @@ const ForumHeader = ({ activeToday }: { activeToday: number }) => {
         <Text style={{ fontSize: 18 }}>{ORG.icon}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={s.headerTitle}>{ORG.name}</Text>
-        <Text style={s.addressText}>📍 {ORG.address}</Text>
+        <Text style={s.headerTitle}>{Organization}</Text>
+        <Text style={s.addressText}>📍 {Org_address}</Text>
       </View>
       <View style={s.activePill}>
         <View style={s.activeDot} />
-        <Text style={s.activeText}>{t('forum.activeCount', { count: activeToday })}</Text>
+        <Text style={s.activeText}>{Employee_range}</Text>
       </View>
     </View>
   );
@@ -321,8 +325,10 @@ const FeedTab = ({
 export const ForumScreen = () => {
   const { t } = useTranslation();
 
-  const hasOrganization = true;
-  const isOrganization  = true;
+  
+  const hasOrganization = useAuthStore((state) => state.user?.organizationId !== null);
+  const isOrganization = useAuthStore((state) => state.user?.role === 'ORGANIZATION');
+  const role = useAuthStore((state) => state.user?.role);
 
   type ActiveTab = 'all' | 'trending' | 'recent' | 'solutions';
   const [activeTab, setActiveTab]             = useState<ActiveTab>('all');
@@ -341,17 +347,15 @@ export const ForumScreen = () => {
 
   const posts = postsData?.data ?? [];
 
-  if (!hasOrganization) {
-    return (
-      <View style={{ flex: 1, backgroundColor: B.bg, paddingTop: 23 }}>
-        <NoOrgScreen
-          onJoinPress={() => { /* navigate to join flow */ }}
-          onCreatePress={() => { /* navigate to create flow */ }}
-        />
-      </View>
-    );
-  }
-
+  
+  if (role === 'EMPLOYEE' && !hasOrganization) {
+  return (
+    <View style={{ flex: 1, backgroundColor: B.bg, paddingTop: 23 }}>
+      <NoOrgScreen/>
+    </View>
+  );
+}
+  
   const handleVote = (id: string, dir: 'up' | 'down') => {
     votePost({ id, type: dir });
   };

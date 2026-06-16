@@ -217,24 +217,23 @@ const ConfirmStep = ({
   const { mutate: requestJoin, isPending } = useRequestJoinOrganization();
 
   const handleSend = () => {
-    requestJoin(
-      {
-        organizationId: selected._id,
-        message: dept ? `Department: ${dept}` : "",
+  requestJoin(
+    {
+      organizationId: selected._id,
+      department: dept,
+      message: "",
+    },
+    {
+      onSuccess: () => setSent(true),
+      onError: (err: any) => {
+        Alert.alert(
+          "Request failed",
+          err?.response?.data?.message || "Something went wrong. Please try again."
+        );
       },
-      {
-        onSuccess: () => {
-          setSent(true);
-        },
-        onError: (err: any) => {
-          Alert.alert(
-            "Request failed",
-            err?.response?.data?.message || "Something went wrong. Please try again."
-          );
-        },
-      }
-    );
-  };
+    }
+  );
+};
 
   return (
     <View style={{ flex: 1 }}>

@@ -1,9 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 import api from "../../clients";
-import { useAuthStore } from "../../../store/authStore";
+import { useAuthStore, UserData } from "../../../store/authStore";
 
-// ─── Types ─────────────────────────────────────────────────────────────────
 interface RegisterPayload {
   role?: "EMPLOYEE" | "ORGANIZATION";
   fullName?: string;
@@ -21,26 +20,16 @@ interface LoginPayload {
   password: string;
 }
 
-interface AuthUser {
-  id: string;
-  fullName: string;
-  email: string;
-  role: "EMPLOYEE" | "ORGANIZATION";
-  organization: string;
-}
-
 interface AuthResponse {
   success: boolean;
   message: string;
   token: string;
-  user: AuthUser;
+  user: UserData;
 }
 
-// ─── Helper: map backend role to store's UserRole ────────────────────────
-const mapRole = (role: AuthUser["role"]): "employee" | "organization" =>
+const mapRole = (role: UserData["role"]): "employee" | "organization" =>
   role === "ORGANIZATION" ? "organization" : "employee";
 
-// ─── Register ──────────────────────────────────────────────────────────────
 export const useRegister = () => {
   const login = useAuthStore((state) => state.login);
 
@@ -51,12 +40,11 @@ export const useRegister = () => {
     },
     onSuccess: async (data) => {
       await SecureStore.setItemAsync("token", data.token);
-      login(mapRole(data.user.role));
+      login(mapRole(data.user.role), data.user);
     },
   });
 };
 
-// ─── Login ─────────────────────────────────────────────────────────────────
 export const useLogin = () => {
   const login = useAuthStore((state) => state.login);
 
@@ -67,7 +55,7 @@ export const useLogin = () => {
     },
     onSuccess: async (data) => {
       await SecureStore.setItemAsync("token", data.token);
-      login(mapRole(data.user.role));
+      login(mapRole(data.user.role), data.user);
     },
   });
 };

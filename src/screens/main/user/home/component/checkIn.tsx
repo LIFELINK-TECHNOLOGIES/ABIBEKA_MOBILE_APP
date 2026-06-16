@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Pressable,
   StyleSheet,
@@ -10,34 +11,28 @@ import { useNavigation } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import Card from "./card";
 import { B } from "../../../../../constant/them";
-
-// ─── Replace with your store/context later ────────────────────────────────────
-const HAS_CHECKED_IN = false;
+import {
+  useTodayMoodEntry,
+  useMoodDashboard,
+} from "../../../../../api/hooks/shared/moodEntry"
 
 type DayStatus = "checked" | "today" | "future" | "missed";
-const WEEK_KEYS: { key: string; status: DayStatus }[] = [
-  { key: "mon", status: "checked" },
-  { key: "tue", status: "checked" },
-  { key: "wed", status: "checked" },
-  { key: "thu", status: "checked" },
-  { key: "fri", status: "today" },
-  { key: "sat", status: "future" },
-  { key: "sun", status: "future" },
-];
 
-const StreakStrip = () => {
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+const StreakStrip = ({ week }: { week: { key: string; status: DayStatus }[] }) => {
   const { t } = useTranslation();
   return (
     <View style={s.stripWrap}>
       <View style={s.dayLabels}>
-        {WEEK_KEYS.map((d, i) => (
+        {week.map((d, i) => (
           <Text
             key={i}
             style={[
               s.dayLabel,
               d.status === "checked" && { color: B.accent },
               d.status === "today" && {
-                color: HAS_CHECKED_IN ? B.accent : B.primary,
+                color: B.primary,
                 fontWeight: "700",
               },
             ]}
@@ -47,14 +42,14 @@ const StreakStrip = () => {
         ))}
       </View>
       <View style={s.dotRow}>
-        {WEEK_KEYS.map((d, i) => (
+        {week.map((d, i) => (
           <View
             key={i}
             style={[
               s.dot,
               d.status === "checked" && { backgroundColor: B.accent },
               d.status === "today" && {
-                backgroundColor: HAS_CHECKED_IN ? B.accent : B.primary,
+                backgroundColor: B.primary,
               },
               (d.status === "future" || d.status === "missed") && {
                 backgroundColor: "rgba(255,255,255,0.07)",
@@ -73,8 +68,14 @@ export default function CheckInCard({ anim }: { anim: Animated.Value }) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const y = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
 
+  const { data: todayData, isLoading: isTodayLoading } = useTodayMoodEntry();
+  const { data: dashboardData, isLoading: isDashboardLoading } = useMoodDashboard(7);
+
+  const hasCheckedIn = todayData?.checkedInToday ?? false;
+  const isLoading = isTodayLoading || isDashboardLoading;
+
   useEffect(() => {
-    if (HAS_CHECKED_IN) return;
+    if (hasCheckedIn || isLoading) return;
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -89,16 +90,56 @@ export default function CheckInCard({ anim }: { anim: Animated.Value }) {
         }),
       ]),
     ).start();
-  }, []);
+  }, [hasCheckedIn, isLoading]);
 
-  const checkedCount = WEEK_KEYS.filter((d) => d.status === "checked").length;
+  if (isLoading) {
+    return (
+      <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
+        <Card style={s.card}>
+          <View style={{ paddingVertical: 30, alignItems: "center" }}>
+            <ActivityIndicator color={B.primary} />
+          </View>
+        </Card>
+      </Animated.View>
+    );
+  }
+
+  // Build a Sun-Sat week strip from the dashboard's daily mood data
+  const dailyEntries = dashboardData?.data?.moodTrend?.daily ?? [];
+  const checkedDates = new Set(
+    dailyEntries.map((d) => new Date(d.date).toDateString())
+  );
+
+  const today = new Date();
+  const todayDayIdx = today.getDay(); // 0 = Sun
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - todayDayIdx);
+
+  const week: { key: string; status: DayStatus }[] = DAY_KEYS.map((key, i) => {
+    const date = new Date(startOfWeek);
+    date.setDate(startOfWeek.getDate() + i);
+    const dateStr = date.toDateString();
+
+    let status: DayStatus;
+    if (i === todayDayIdx) {
+      status = hasCheckedIn ? "checked" : "today";
+    } else if (i > todayDayIdx) {
+      status = "future";
+    } else {
+      status = checkedDates.has(dateStr) ? "checked" : "missed";
+    }
+
+    return { key, status };
+  });
+
+  const checkedCount = week.filter((d) => d.status === "checked").length;
 
   return (
     <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
       <Card
         style={[
           s.card,
-          HAS_CHECKED_IN
+          hasCheckedIn
             ? { borderColor: B.accent + "35" }
             : { borderColor: B.primary + "40" },
         ]}
@@ -106,7 +147,7 @@ export default function CheckInCard({ anim }: { anim: Animated.Value }) {
         <View
           style={[
             s.topLine,
-            { backgroundColor: HAS_CHECKED_IN ? B.accent : B.primary },
+            { backgroundColor: hasCheckedIn ? B.accent : B.primary },
           ]}
         />
 
@@ -114,7 +155,7 @@ export default function CheckInCard({ anim }: { anim: Animated.Value }) {
           <View
             style={[
               s.iconWrap,
-              HAS_CHECKED_IN
+              hasCheckedIn
                 ? {
                     backgroundColor: B.accent + "18",
                     borderColor: B.accent + "30",
@@ -126,20 +167,20 @@ export default function CheckInCard({ anim }: { anim: Animated.Value }) {
             ]}
           >
             <Text style={{ fontSize: 20 }}>
-              {HAS_CHECKED_IN ? "✅" : "✨"}
+              {hasCheckedIn ? "✅" : "✨"}
             </Text>
           </View>
 
           <View style={{ flex: 1 }}>
             <Text style={s.title}>{t('home.dailyCheckIn')}</Text>
             <Text style={s.sub}>
-              {HAS_CHECKED_IN
+              {hasCheckedIn
                 ? t('home.doneForToday')
                 : t('home.takesThirtySec')}
             </Text>
           </View>
 
-          {HAS_CHECKED_IN ? (
+          {hasCheckedIn ? (
             <View style={s.doneBadge}>
               <Text style={s.doneBadgeText}>{t('home.doneBadge')}</Text>
             </View>
@@ -151,9 +192,9 @@ export default function CheckInCard({ anim }: { anim: Animated.Value }) {
           )}
         </View>
 
-        <StreakStrip />
+        <StreakStrip week={week} />
 
-        {!HAS_CHECKED_IN && (
+        {!hasCheckedIn && (
           <Pressable
             onPress={() => navigation.navigate("CheckIn")}
             style={s.cta}

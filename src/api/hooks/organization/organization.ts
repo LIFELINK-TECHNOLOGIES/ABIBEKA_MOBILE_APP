@@ -17,8 +17,8 @@ interface OrgListItem {
 interface JoinRequestPayload {
   organizationId: string;
   message?: string;
+  department?: string;
 }
-
 interface OrganizationRequest {
   _id: string;
   employeeId: { _id: string; fullName: string; email: string } | string;

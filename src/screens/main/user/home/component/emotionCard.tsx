@@ -1,9 +1,17 @@
 import React from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path, Text as SvgText } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import Card from "./card";
-import { B, EMOTIONS } from "../../../../../constant/them";
+import { B } from "../../../../../constant/them";
+import { useMoodDashboard } from "../../../../../api/hooks/shared/moodEntry"
+
+interface EmotionItem {
+  key: string;
+  label: string;
+  pct: number;
+  color: string;
+}
 
 export default function EmotionCard({ anim }: { anim: Animated.Value }) {
   const { t } = useTranslation();
@@ -13,6 +21,49 @@ export default function EmotionCard({ anim }: { anim: Animated.Value }) {
     cy = SIZE / 2,
     R = 46,
     SW = 18;
+
+  const { data, isLoading } = useMoodDashboard(30); // last 30 days for a stable breakdown
+
+  const breakdown = data?.data?.emotionBreakdown;
+
+  // Map backend's fixed categories to the same shape EMOTIONS used to have
+  const EMOTIONS: EmotionItem[] = breakdown
+    ? [
+        { key: "calm", label: "Calm", pct: breakdown.calmLevel, color: B.primary },
+        { key: "happy", label: "Happy", pct: breakdown.happyLevel, color: B.accent },
+        { key: "stressed", label: "Stressed", pct: breakdown.stressLevel, color: B.amber },
+        { key: "anxious", label: "Anxious", pct: breakdown.anxietyLevel, color: B.red },
+      ]
+    : [];
+
+  if (isLoading) {
+    return (
+      <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
+        <Card>
+          <View style={{ paddingVertical: 40, alignItems: "center" }}>
+            <ActivityIndicator color={B.primary} />
+          </View>
+        </Card>
+      </Animated.View>
+    );
+  }
+
+  const hasData = EMOTIONS.some((e) => e.pct > 0);
+
+  if (!hasData) {
+    return (
+      <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
+        <Card>
+          <Text style={styles.cardTitle}>{t('home.emotionBreakdown')}</Text>
+          <View style={{ paddingVertical: 30, alignItems: "center" }}>
+            <Text style={{ color: B.muted, fontSize: 13 }}>
+              No emotion data yet — complete a check-in
+            </Text>
+          </View>
+        </Card>
+      </Animated.View>
+    );
+  }
 
   let cum = 0;
   const arcs = EMOTIONS.map((e) => {
@@ -28,7 +79,8 @@ export default function EmotionCard({ anim }: { anim: Animated.Value }) {
     return { ...e, d: `M ${x1} ${y1} A ${R} ${R} 0 ${lg} 1 ${x2} ${y2}` };
   });
 
-  const dominant = EMOTIONS[0];
+  // Dominant = highest percentage category
+  const dominant = EMOTIONS.reduce((a, b) => (b.pct > a.pct ? b : a));
 
   return (
     <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
@@ -47,23 +99,25 @@ export default function EmotionCard({ anim }: { anim: Animated.Value }) {
               stroke={B.cardBorder}
               strokeWidth={SW + 2}
             />
-            {arcs.map((arc, i) => (
-              <Path
-                key={i}
-                d={arc.d}
-                fill="none"
-                stroke={arc.color}
-                strokeWidth={SW}
-                strokeLinecap="butt"
-              />
-            ))}
+            {arcs.map((arc, i) =>
+              arc.pct > 0 ? (
+                <Path
+                  key={i}
+                  d={arc.d}
+                  fill="none"
+                  stroke={arc.color}
+                  strokeWidth={SW}
+                  strokeLinecap="butt"
+                />
+              ) : null
+            )}
             <Circle cx={cx} cy={cy} r={R - SW / 2 - 4} fill={B.card} />
             <SvgText
               x={cx}
               y={cy - 8}
               textAnchor="middle"
               fill={B.text}
-              fontSize={22}
+              fontSize={12}
               fontWeight="800"
             >
               {dominant.pct}%

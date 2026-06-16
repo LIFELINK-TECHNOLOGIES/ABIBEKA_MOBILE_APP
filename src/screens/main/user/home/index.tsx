@@ -66,9 +66,9 @@ export default function HomeScreen() {
           <StressCard anim={stressA} />
           <Gap />
           <EmotionCard anim={emotionA} />
-          <Gap />
-          <OrgCard anim={orgA} />
-          <View style={{ height: 110 }} />
+          {/* <Gap /> */}
+          {/* <OrgCard anim={orgA} /> */}
+          <View style={{ height: 10 }} />
         </ScrollView>
       </SafeAreaView>
     </View>
