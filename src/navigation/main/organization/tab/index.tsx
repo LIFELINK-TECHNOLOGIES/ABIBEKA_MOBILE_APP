@@ -7,7 +7,7 @@ import JoinRequestsScreen from "../../../../screens/main/organization/request";
 import AbibekaChatScreen from "../../../../screens/main/user/aiChat";
 import AssignRoleScreen from "../../../../screens/main/organization/assignRole";
 import { ForumScreen } from "../../../../screens/main/user/forum";
-
+import { useAuthStore } from "../../../../store/authStore"; 
 // ─── Tokens ──────────────────────────────────────────────────────────────────
 const C = {
   bg: '#04060F',
@@ -25,44 +25,23 @@ type TabItem = {
   icon: string;
   label: string;
   component: React.ComponentType<any>;
-  requireAuth?: number; // minimum clearance level
+  requiredClearance?: number;
 };
 
 const TAB_CONFIG: TabItem[] = [
+  { name: 'Home',    label: 'Home',     icon: '⬡', component: Home },
+  { name: 'Forum',   label: 'Forum',    icon: '◎', component: ForumScreen },
+  { name: 'AI',      label: 'Abibeka',  icon: '✦', component: AbibekaChatScreen },
   {
-    name: 'Home',
-    label: 'Home',
-    icon: '⬡',
-    component: Home,
-  },
-  {
-    name: 'Forum',
-    label: 'Forum',
-    icon: '◎',
-    component: ForumScreen,
-  },
-   {
-    name: 'AI',
-    label: 'Abibeka',
-    icon: '✦',
-    component: AbibekaChatScreen,
-  },
-   {
     name: 'Roles',
     label: 'Roles',
     icon: '❖',
     component: AssignRoleScreen,
-    requireAuth: 1, // Only visible for level 1
+    requiredClearance: 5, // only clearance level 5 can see this
   },
-  {
-    name: 'Request',
-    label: 'Requests',
-    icon: '◈',
-    component: JoinRequestsScreen,
-  }
+  { name: 'Request', label: 'Requests', icon: '◈', component: JoinRequestsScreen },
 ];
 
-// ─── Custom Tab Bar ───────────────────────────────────────────────────────────
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   return (
     <View style={styles.tabBarWrapper}>
@@ -83,28 +62,6 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             }
           };
 
-          // AI tab - centered and raised
-          if (route.name === 'AI') {
-            return (
-              <TouchableOpacity
-                key={route.key}
-                activeOpacity={0.85}
-                onPress={onPress}
-                style={styles.centerTabBtn}
-              >
-                <View style={[styles.centerTabInner, isFocused && styles.centerTabInnerActive]}>
-                  <Text style={[styles.centerTabIcon, isFocused && styles.centerTabIconActive]}>
-                    {tabCfg.icon}
-                  </Text>
-                </View>
-                <Text style={[styles.centerTabLabel, isFocused && { color: C.tealLight }]}>
-                  {tabCfg.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          }
-
-          // Regular tabs
           return (
             <TouchableOpacity
               key={route.key}
@@ -131,13 +88,15 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 // ─── Navigator ────────────────────────────────────────────────────────────────
 const Tab = createBottomTabNavigator();
 
-interface OrganizationTabProps {
-  clearanceLevel?: number;
-}
+export default function OrganizationTab() {
+  const user = useAuthStore(state => state.user);
 
-export default function OrganizationTab({ clearanceLevel = 1 }: OrganizationTabProps) {
-  const visibleTabs = TAB_CONFIG.filter(
-    tab => !tab.requireAuth || clearanceLevel <= tab.requireAuth
+  // clearanceLevel is stored as a string in UserData, so parse it
+  const clearanceLevel = user?.clearanceLevel ? parseInt(user.clearanceLevel, 10) : 0;
+
+  const visibleTabs = TAB_CONFIG.filter(tab =>
+    // show tab if it has no clearance requirement, OR user meets the exact level
+    tab.requiredClearance === undefined || clearanceLevel === tab.requiredClearance
   );
 
   return (
@@ -156,7 +115,7 @@ export default function OrganizationTab({ clearanceLevel = 1 }: OrganizationTabP
   );
 }
 
-// ─── Styles ────────────────────────────────────
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   tabBarWrapper: {
     backgroundColor: C.bg,

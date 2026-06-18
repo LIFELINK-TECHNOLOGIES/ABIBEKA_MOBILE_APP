@@ -276,6 +276,16 @@ const InlineNav = ({
   );
 };
 
+
+
+
+
+
+
+
+
+
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 interface AssessmentScreenProps {
   streak?: number;
@@ -299,7 +309,10 @@ export default function AssessmentScreen({
   const [submitted, setSubmitted] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
-  const cardAnim  = useRef(new Animated.Value(0)).current;
+  const cardAnim = useRef(new Animated.Value(0)).current;
+  
+
+  const [nextCheckIn, setNextCheckIn] = useState<string | null>(null);
 
   const { mutate: submitCheckIn, isPending: isSubmitting } = useSubmitCheckIn();
 
@@ -346,6 +359,7 @@ export default function AssessmentScreen({
       },
       {
         onSuccess: () => {
+           setNextCheckIn(data.nextCheckIn);
           setSubmitted(true);
           onComplete?.(state);
         },
@@ -507,6 +521,7 @@ export default function AssessmentScreen({
               onSubmit={handleSubmit}
               submitted={submitted}
               isSubmitting={isSubmitting}
+               nextCheckIn={nextCheckIn}
             />
           </StepShell>
         );

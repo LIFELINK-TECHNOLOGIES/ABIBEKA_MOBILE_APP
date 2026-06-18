@@ -377,8 +377,10 @@ export default function AssignRoleScreen() {
 
   // ── API hooks ──────────────────────────────────────────────────────────────
   const { data: employees = [], isLoading, isError } = useOrganizationEmployees();
-  const { mutate: promote, isPending: isAssigning }   = usePromoteEmployee();
-  const { mutate: remove,  isPending: isRevoking }    = useRemoveEmployee();
+  const { mutate: promote, isPending: isAssigning, error: promoteError }   = usePromoteEmployee();
+  const { mutate: remove, isPending: isRevoking } = useRemoveEmployee();
+  
+  console.log(promoteError)
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleAssign = (empId: string, position: string) => {

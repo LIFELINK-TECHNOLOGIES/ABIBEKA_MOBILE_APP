@@ -16,6 +16,7 @@ export interface UserData {
   joinedOrganizationName: string | null;
   position: string;
   department: string;
+  clearanceLevel: string;
 }
 
 interface AuthState {

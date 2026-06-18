@@ -8,6 +8,6 @@ export const ORGANIZATION = {
 
   // Employee management (org-side)
   ALL_EMPLOYEES: "/organization/employees",
-  PROMOTE_EMPLOYEE: (employeeId: string) => `/employees/${employeeId}/position`,
-  REMOVE_EMPLOYEE: (employeeId: string) => `/employees/${employeeId}`,
+  PROMOTE_EMPLOYEE: (employeeId: string) => `/organization/employees/${employeeId}/position`,
+  REMOVE_EMPLOYEE: (employeeId: string) => `/organization/employees/${employeeId}`,
 };

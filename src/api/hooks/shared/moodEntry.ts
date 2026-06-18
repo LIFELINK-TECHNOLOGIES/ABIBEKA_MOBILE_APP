@@ -92,7 +92,7 @@ export const useSubmitCheckIn = () => {
       const { data } = await api.post<SubmitCheckInResponse>(MoodEntry.POST_DATA, payload);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: MOOD_DASHBOARD_KEY });
       queryClient.invalidateQueries({ queryKey: MOOD_TODAY_KEY });
     },
