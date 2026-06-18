@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   KeyboardAvoidingView,
   Platform,
@@ -19,7 +20,95 @@ import {
   SOL_STATUS,
   PODIUM_COLORS,
 } from '../constants/constant';
-import type { Solution, SolutionTag, SolutionStatus } from '../constants/constant';
+import {
+  useSolutions,
+  useVoteSolution,
+  useCreateSolution,
+} from '../../../../../api/hooks/organization/useSolution';
+
+
+export type SolutionTag =
+  | 'Burnout'
+  | 'Workload'
+  | 'Stress Management'
+  | 'Mental Health'
+  | 'Work-Life Balance'
+  | 'Career Growth'
+  | 'Compensation'
+  | 'Team Culture'
+  | 'Communication'
+  | 'Management Support';
+
+export type SolutionStatus = "Open" | "In_progress" | "Adopted";
+
+export interface Solution {
+  id: string;
+  authorIcon: string;
+  authorLabel: string;
+  postedAt: string;
+  status: SolutionStatus;
+  title: string;
+  body: string;
+  tags: SolutionTag[];
+  pinned: boolean;
+  upvotes: number;
+  downvotes: number;
+  userVote: 'up' | 'down' | null;
+  weekLabel: 'This week' | 'Last week' | null;
+}
+
+// ─── Helper: turn the backend's ISO postedAt into a compact relative label ──
+const formatRelativeTime = (iso: string) => {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'now';
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay}d`;
+  return new Date(iso).toLocaleDateString();
+};
+
+// ─── Helper: safe lookups for SOL_STATUS / SOL_TAG ───────────────────────────
+// SOL_STATUS / SOL_TAG are plain objects keyed by the exact strings used in
+// the Solution model. If the constants file ever drifts from that schema
+// again, an unknown key returns `undefined` and reading `.bg`/`.color` off
+// it crashes the screen. These wrappers fall back to a neutral style instead
+// and log which key was missing, so a future mismatch is a console warning
+// instead of a crash.
+const STATUS_FALLBACK = {
+  label: 'Unknown',
+  color: B.muted,
+  bg: 'rgba(255,255,255,0.05)',
+  border: B.border,
+};
+
+const TAG_FALLBACK = {
+  label: 'Other',
+  color: B.muted,
+  bg: 'rgba(255,255,255,0.05)',
+};
+
+const getStatusConfig = (status: SolutionStatus) => {
+  const cfg = SOL_STATUS[status];
+  if (!cfg) {
+    console.warn(
+      `[SolutionsTab] No SOL_STATUS entry for "${status}". Check that this exact key exists in constants/constant.ts.`,
+    );
+  }
+  return cfg ?? STATUS_FALLBACK;
+};
+
+const getTagConfig = (tag: SolutionTag) => {
+  const cfg = SOL_TAG[tag];
+  if (!cfg) {
+    console.warn(
+      `[SolutionsTab] No SOL_TAG entry for "${tag}". Check that this exact key exists in constants/constant.ts.`,
+    );
+  }
+  return cfg ?? TAG_FALLBACK;
+};
 
 // ─── Solutions: Vote bar ──────────────────────────────────────────────────────
 const SolutionVoteBar = ({
@@ -95,8 +184,8 @@ const SolutionCard = ({
 }) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
-  const status = SOL_STATUS[solution.status];
-  const accentColor = solution.tags[0] ? SOL_TAG[solution.tags[0]].color : B.purpleLight;
+  const status = getStatusConfig(solution.status);
+  const accentColor = solution.tags[0] ? getTagConfig(solution.tags[0]).color : B.purpleLight;
 
   return (
     <TouchableOpacity
@@ -126,7 +215,7 @@ const SolutionCard = ({
         <View style={{ flex: 1 }}>
           <Text style={s.solAuthorLabel}>{solution.authorLabel}</Text>
         </View>
-        <Text style={s.solTime}>{solution.postedAt}</Text>
+        <Text style={s.solTime}>{formatRelativeTime(solution.postedAt)}</Text>
         <View
           style={[
             s.solStatusBadge,
@@ -147,7 +236,7 @@ const SolutionCard = ({
 
       <View style={s.solTags}>
         {solution.tags.map((tag) => {
-          const cfg = SOL_TAG[tag];
+          const cfg = getTagConfig(tag);
           return (
             <View
               key={tag}
@@ -168,7 +257,7 @@ const SolutionCard = ({
 const Leaderboard = ({ solutions }: { solutions: Solution[] }) => {
   const { t } = useTranslation();
   const top3 = solutions
-    .filter((s) => s.weekLabel === 'This week')
+    .filter((sol) => sol.weekLabel === 'This week')
     .sort((a, b) => b.upvotes - b.downvotes - (a.upvotes - a.downvotes))
     .slice(0, 3);
 
@@ -250,22 +339,25 @@ const Leaderboard = ({ solutions }: { solutions: Solution[] }) => {
 };
 
 // ─── Solutions: New solution sheet ───────────────────────────────────────────
+// Now posts directly via useCreateSolution — parent only needs to control
+// `visible`/`onClose`, it no longer has to wire up the API call itself.
 export const NewSolutionSheet = ({
   visible,
   onClose,
-  onPost,
 }: {
   visible: boolean;
   onClose: () => void;
-  onPost: (title: string, body: string, tags: SolutionTag[]) => void;
 }) => {
   const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [selectedTags, setSelectedTags] = useState<SolutionTag[]>([]);
-  const [selectedStatus, setSelectedStatus] = useState<SolutionStatus>('open');
+  const [selectedStatus, setSelectedStatus] = useState<SolutionStatus>('Open');
   const slide = useRef(new Animated.Value(700)).current;
   const [mounted, setMounted] = useState(false);
+
+  const { mutate: createSolution, isPending, error: createError } = useCreateSolution();
+  console.log(createError)
 
   React.useEffect(() => {
     if (visible) {
@@ -273,7 +365,13 @@ export const NewSolutionSheet = ({
       Animated.spring(slide, { toValue: 0, tension: 55, friction: 13, useNativeDriver: true }).start();
     } else {
       Animated.spring(slide, { toValue: 700, tension: 55, friction: 13, useNativeDriver: true }).start(
-        () => { setMounted(false); setTitle(''); setBody(''); setSelectedTags([]); },
+        () => {
+          setMounted(false);
+          setTitle('');
+          setBody('');
+          setSelectedTags([]);
+          setSelectedStatus('Open');
+        },
       );
     }
   }, [visible]);
@@ -281,12 +379,18 @@ export const NewSolutionSheet = ({
   if (!mounted) return null;
 
   const canSubmit = title.trim().length > 5 && body.trim().length > 20;
+  
 
   const submit = () => {
-    if (!canSubmit) return;
-    onPost(title.trim(), body.trim(), selectedTags);
-    onClose();
-  };
+  if (!canSubmit) return;
+  createSolution(
+    { title: title.trim(), body: body.trim(), tags: selectedTags, status: selectedStatus },
+    {
+      onSuccess: onClose,
+      onError: (err: any) => console.log('CREATE SOLUTION FAILED:', err?.response?.data),
+    },
+  );
+};
 
   return (
     <Animated.View style={[s.sheet, { transform: [{ translateY: slide }] }]}>
@@ -351,7 +455,7 @@ export const NewSolutionSheet = ({
                   key={tag}
                   onPress={() =>
                     setSelectedTags((prev) =>
-                      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+                      prev.includes(tag) ? prev.filter((tg) => tg !== tag) : [...prev, tag],
                     )
                   }
                   style={[s.tagChip, active && { borderColor: cfg.color, backgroundColor: cfg.bg }]}
@@ -365,7 +469,7 @@ export const NewSolutionSheet = ({
           </View>
 
           <Text style={[s.fieldLabel, { marginTop: 4 }]}>{t('forum.statusLabel')}</Text>
-          <View style={{ flexDirection: 'row', gap: 7, marginBottom: 20 }}>
+          <View style={{ flexDirection: 'row', gap: 7, marginBottom: 12 }}>
             {(Object.keys(SOL_STATUS) as SolutionStatus[]).map((st) => {
               const cfg = SOL_STATUS[st];
               const active = selectedStatus === st;
@@ -388,16 +492,25 @@ export const NewSolutionSheet = ({
             })}
           </View>
 
+          {createError && (
+            <Text style={s.errorText}>{t('forum.postSolutionError')}</Text>
+          )}
+
           <TouchableOpacity
             onPress={submit}
             activeOpacity={0.88}
+            disabled={isPending}
             style={[
               s.postBtn,
               { backgroundColor: B.purple, shadowColor: B.purple },
-              !canSubmit && { opacity: 0.35 },
+              (!canSubmit || isPending) && { opacity: 0.35 },
             ]}
           >
-            <Text style={s.postBtnText}>{t('forum.postSolutionBtn')}</Text>
+            {isPending ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={s.postBtnText}>{t('forum.postSolutionBtn')}</Text>
+            )}
           </TouchableOpacity>
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -407,20 +520,25 @@ export const NewSolutionSheet = ({
 };
 
 // ─── Solutions tab ────────────────────────────────────────────────────────────
+// Now fetches and votes via the hooks directly. Parent only needs to tell it
+// who's looking (isOrganization) and where the FAB should send them.
 export const SolutionsTab = ({
-  solutions,
-  onVote,
   isOrganization,
   onNewSolution,
 }: {
-  solutions: Solution[];
-  onVote: (id: string, dir: 'up' | 'down') => void;
   isOrganization: boolean;
   onNewSolution: () => void;
 }) => {
   const { t } = useTranslation();
-  const thisWeek = solutions.filter((s) => s.weekLabel === 'This week');
-  const lastWeek = solutions.filter((s) => s.weekLabel === 'Last week');
+  const { data: solutions = [], isLoading, isError } = useSolutions();
+  const { mutate: vote } = useVoteSolution();
+
+  const handleVote = (id: string, dir: 'up' | 'down') => {
+    vote({ id, type: dir });
+  };
+
+  const thisWeek = solutions.filter((sol) => sol.weekLabel === 'This week');
+  const lastWeek = solutions.filter((sol) => sol.weekLabel === 'Last week');
 
   return (
     <View style={{ flex: 1 }}>
@@ -449,35 +567,52 @@ export const SolutionsTab = ({
           </View>
         )}
 
-        <Leaderboard solutions={solutions} />
-
-        {thisWeek.length > 0 && (
-          <>
-            <View style={s.weekLabel}>
-              <View style={[s.weekDot, { backgroundColor: B.purpleLight }]} />
-              <Text style={[s.weekLabelText, { color: B.purpleLight }]}>
-                {t('forum.thisWeekSolutions', { count: thisWeek.length })}
-              </Text>
-            </View>
-            {thisWeek
-              .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
-              .map((sol) => (
-                <SolutionCard key={sol.id} solution={sol} onVote={onVote} />
-              ))}
-          </>
+        {isLoading && (
+          <View style={s.loadingWrap}>
+            <ActivityIndicator color={B.purpleLight} />
+          </View>
         )}
 
-        {lastWeek.length > 0 && (
+        {isError && !isLoading && (
+          <View style={s.loadingWrap}>
+            <Text style={s.readOnlyText}>{t('forum.loadSolutionsError')}</Text>
+          </View>
+        )}
+
+        {!isLoading && !isError && (
           <>
-            <View style={[s.weekLabel, { marginTop: 6 }]}>
-              <View style={[s.weekDot, { backgroundColor: B.muted }]} />
-              <Text style={[s.weekLabelText, { color: B.muted }]}>
-                {t('forum.lastWeekSolutions', { count: lastWeek.length })}
-              </Text>
-            </View>
-            {lastWeek.map((sol) => (
-              <SolutionCard key={sol.id} solution={sol} onVote={onVote} />
-            ))}
+            <Leaderboard solutions={solutions} />
+
+            {thisWeek.length > 0 && (
+              <>
+                <View style={s.weekLabel}>
+                  <View style={[s.weekDot, { backgroundColor: B.purpleLight }]} />
+                  <Text style={[s.weekLabelText, { color: B.purpleLight }]}>
+                    {t('forum.thisWeekSolutions', { count: thisWeek.length })}
+                  </Text>
+                </View>
+                {thisWeek
+                  .slice()
+                  .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
+                  .map((sol) => (
+                    <SolutionCard key={sol.id} solution={sol} onVote={handleVote} />
+                  ))}
+              </>
+            )}
+
+            {lastWeek.length > 0 && (
+              <>
+                <View style={[s.weekLabel, { marginTop: 6 }]}>
+                  <View style={[s.weekDot, { backgroundColor: B.muted }]} />
+                  <Text style={[s.weekLabelText, { color: B.muted }]}>
+                    {t('forum.lastWeekSolutions', { count: lastWeek.length })}
+                  </Text>
+                </View>
+                {lastWeek.map((sol) => (
+                  <SolutionCard key={sol.id} solution={sol} onVote={handleVote} />
+                ))}
+              </>
+            )}
           </>
         )}
 
@@ -739,6 +874,18 @@ const s = StyleSheet.create({
     paddingVertical: 9,
   },
   readOnlyText: { flex: 1, fontSize: 12, color: B.purpleLight, lineHeight: 17 },
+
+  // Loading / error state
+  loadingWrap: {
+    paddingVertical: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    fontSize: 12,
+    color: B.red,
+    marginBottom: 12,
+  },
 
   // FAB
   fab: {
