@@ -59,15 +59,11 @@ export default function HomeScreen() {
           <Gap />
           <CheckInCard anim={checkInA} />
           <Gap />
-          {/* <MoodCard anim={moodA} /> */}
-          <Gap />
           <MoodTrendCard anim={trendA} />
           <Gap />
           <StressCard anim={stressA} />
           <Gap />
           <EmotionCard anim={emotionA} />
-          {/* <Gap /> */}
-          {/* <OrgCard anim={orgA} /> */}
           <View style={{ height: 10 }} />
         </ScrollView>
       </SafeAreaView>

@@ -5,11 +5,18 @@ import Card from "./card";
 import { B, DAY_LABELS } from "../../../../../constant/them";
 import { useMoodDashboard } from "../../../../../api/hooks/shared/moodEntry";
 
-const getStressLevel = (v: number) =>
-  v >= 70 ? "high" : v >= 50 ? "moderate" : "low";
+type StressLevel = "calm" | "moderate" | "high";
 
-const getStressColor = (v: number, b: typeof B) =>
-  v >= 70 ? b.red : v >= 50 ? b.amber : b.accent;
+// Fallback classifier — only needed where the backend doesn't give us a
+// classification directly (the weekly avg/percentage has no per-entry tag).
+const classify = (pct: number): StressLevel =>
+  pct >= 70 ? "high" : pct >= 50 ? "moderate" : "calm";
+
+const getColorForLevel = (level: StressLevel, b: typeof B) =>
+  level === "high" ? b.red : level === "moderate" ? b.amber : b.accent;
+
+// Backend uses "calm", i18n keys use "low" — bridge the two.
+const levelKey = (level: StressLevel) => (level === "calm" ? "low" : level);
 
 const getDayLabel = (dateStr: string): string => {
   const days = ["S", "M", "T", "W", "T", "F", "S"];
@@ -24,7 +31,6 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
   const y = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
   const gaugeAnim = useRef(new Animated.Value(0)).current;
 
-  // ✅ Fixed: single ref holding a fixed-size array — hooks never called in a loop
   const barAnimsRef = useRef<Animated.Value[]>([]);
   if (barAnimsRef.current.length < MAX_BARS) {
     for (let i = barAnimsRef.current.length; i < MAX_BARS; i++) {
@@ -33,49 +39,69 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
   }
   const barAnims = barAnimsRef.current;
 
+  // stress/moodTrend/emotionBreakdown are always rolling-7-day regardless of
+  // `range`, so the `7` here is just for clarity / cache-key consistency —
+  // it doesn't change what this slice of the response contains.
   const { data, isLoading } = useMoodDashboard(7);
 
-  const daily = data?.data?.stress?.daily ?? [];
+  const stress = data?.data?.stress;
+  const daily = stress?.daily ?? [];
+
   const stressVals = daily.map((d) => Math.round(d.value * 10));
+  const dayClassifications = daily.map((d) => d.classification);
   const dayLabels = daily.map((d) => getDayLabel(d.date));
 
   const current = stressVals.length > 0 ? stressVals[stressVals.length - 1] : 0;
+  const currentLevel: StressLevel =
+    dayClassifications.length > 0
+      ? dayClassifications[dayClassifications.length - 1]
+      : classify(current);
+
   const prev = stressVals.length > 1 ? stressVals[stressVals.length - 2] : current;
   const delta = current - prev;
-  const avg = stressVals.length > 0
-    ? Math.round(stressVals.reduce((a, b) => a + b, 0) / stressVals.length)
-    : 0;
-  const peakVal = stressVals.length > 0 ? Math.max(...stressVals) : 0;
-  const peakIdx = stressVals.indexOf(peakVal);
-  const calmVal = stressVals.length > 0 ? Math.min(...stressVals) : 0;
-  const calmIdx = stressVals.indexOf(calmVal);
 
-  const stressColor = getStressColor(current, B);
+  // Use the backend's own weekly percentage instead of re-averaging locally.
+  const avg = stress ? Math.round(stress.percentage) : 0;
+  const avgLevel = classify(avg);
 
-  useEffect(() => {
-    const listener = anim.addListener(({ value }) => {
-      if (value > 0.6 && stressVals.length > 0) {
-        Animated.timing(gaugeAnim, {
-          toValue: current / 100,
-          duration: 1000,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: false,
-        }).start();
+  // peakDay/calmestDay now carry their own real classification — no more
+  // hardcoding "high"/"low" regardless of the actual value.
+  const peakDay = stress?.peakDay ?? null;
+  const calmestDay = stress?.calmestDay ?? null;
+  const peakVal = peakDay ? Math.round(peakDay.value * 10) : 0;
+  const calmVal = calmestDay ? Math.round(calmestDay.value * 10) : 0;
+  const peakLabel = peakDay ? getDayLabel(peakDay.date) : "–";
+  const calmLabel = calmestDay ? getDayLabel(calmestDay.date) : "–";
+  const peakLevel: StressLevel = peakDay?.classification ?? "high";
+  const calmLevel: StressLevel = calmestDay?.classification ?? "calm";
 
-        // ✅ Fixed: iterate over stressVals length, index into pre-created barAnims array
-        stressVals.forEach((_, i) =>
-          Animated.spring(barAnims[i], {
-            toValue: 1,
-            delay: i * 55,
-            tension: 60,
-            friction: 9,
-            useNativeDriver: true,
-          }).start(),
-        );
-      }
-    });
-    return () => anim.removeListener(listener);
-  }, [stressVals.length]);
+  const stressColor = getColorForLevel(currentLevel, B);
+
+  
+const hasAnimatedRef = useRef(false);
+
+useEffect(() => {
+  if (stressVals.length > 0 && !hasAnimatedRef.current) {
+    hasAnimatedRef.current = true;
+
+    Animated.timing(gaugeAnim, {
+      toValue: current / 100,
+      duration: 1000,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+
+    stressVals.forEach((_, i) =>
+      Animated.spring(barAnims[i], {
+        toValue: 1,
+        delay: i * 55,
+        tension: 60,
+        friction: 9,
+        useNativeDriver: true,
+      }).start(),
+    );
+  }
+}, [stressVals.length]);
 
   const gaugeW = gaugeAnim.interpolate({
     inputRange: [0, 1],
@@ -133,7 +159,7 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
             ]}
           >
             <Text style={[s.badgeText, { color: stressColor }]}>
-              {t(`home.stressLevels.${getStressLevel(current)}`)}
+              {t(`home.stressLevels.${levelKey(currentLevel)}`)}
             </Text>
           </View>
         </View>
@@ -177,7 +203,8 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
         <View style={s.barRow}>
           {stressVals.map((v, i) => {
             const isToday = i === stressVals.length - 1;
-            const c       = getStressColor(v, B);
+            const level   = dayClassifications[i] ?? classify(v);
+            const c       = getColorForLevel(level, B);
             const h       = Math.max(4, (v / 100) * MAX_H);
             return (
               <View key={i} style={[s.barCol, { height: MAX_H }]}>
@@ -216,22 +243,22 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
               {avg}
               <Text style={s.statUnit}>%</Text>
             </Text>
-            <Text style={s.statSub}>{t('home.rangeSuffix', { level: t(`home.stressLevels.${getStressLevel(avg)}`) })}</Text>
+            <Text style={s.statSub}>{t('home.rangeSuffix', { level: t(`home.stressLevels.${levelKey(avgLevel)}`) })}</Text>
           </View>
 
           <View style={s.statCard}>
             <Text style={s.statLabel}>{t('home.peakDay')}</Text>
-            <Text style={[s.statVal, s.statValSm]}>{dayLabels[peakIdx]}</Text>
-            <Text style={[s.statSub, { color: B.red + "CC" }]}>
-              {peakVal}% · {t('home.stressLevels.high')}
+            <Text style={[s.statVal, s.statValSm]}>{peakLabel}</Text>
+            <Text style={[s.statSub, { color: getColorForLevel(peakLevel, B) + "CC" }]}>
+              {peakVal}% · {t(`home.stressLevels.${levelKey(peakLevel)}`)}
             </Text>
           </View>
 
           <View style={s.statCard}>
             <Text style={s.statLabel}>{t('home.calmestDay')}</Text>
-            <Text style={[s.statVal, s.statValSm]}>{dayLabels[calmIdx]}</Text>
-            <Text style={[s.statSub, { color: B.accent + "CC" }]}>
-              {calmVal}% · {t('home.stressLevels.low')}
+            <Text style={[s.statVal, s.statValSm]}>{calmLabel}</Text>
+            <Text style={[s.statSub, { color: getColorForLevel(calmLevel, B) + "CC" }]}>
+              {calmVal}% · {t(`home.stressLevels.${levelKey(calmLevel)}`)}
             </Text>
           </View>
         </View>

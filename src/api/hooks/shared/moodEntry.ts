@@ -33,22 +33,56 @@ interface SubmitCheckInResponse {
   data: MoodEntryDoc;
 }
 
+// A single day's mood point, used for moodTrend.daily / bestDay / worstDay
+interface MoodDayPoint {
+  date: string;
+  mood: number;
+  label: string | null;
+  emoji: string | null;
+  color: string | null;
+  score: number;
+}
+
+// The mode (most-logged) mood for the rolling week
+interface MostFrequentMood {
+  mood: number;
+  label: string | null;
+  emoji: string | null;
+  color: string | null;
+  count: number;
+  percentage: number;
+}
+
+// A single day's stress point. Used for stress.daily, and also for
+// peakDay/calmestDay — the backend pulls those straight out of the same
+// daily array, so they carry the same `classification` field.
+interface StressDayPoint {
+  date: string;
+  value: number;
+  classification: "calm" | "moderate" | "high";
+}
+
 interface DashboardData {
   totalCheckIns: number;
   streak: number;
   hasJoinedOrganization: boolean;
+  // Rolling last-7-days mood trend
   moodTrend: {
     avg: number;
-    bestDay: { date: string; mood: number; score: number } | null;
-    worstDay: { date: string; mood: number; score: number } | null;
-    daily: { date: string; mood: number; score: number }[];
+    bestDay: MoodDayPoint | null;
+    worstDay: MoodDayPoint | null;
+    mostFrequentMood: MostFrequentMood | null;
+    daily: MoodDayPoint[];
   };
+  // Rolling last-7-days stress level
   stress: {
     avg: number;
-    peakDay: { date: string; value: number } | null;
-    calmestDay: { date: string; value: number } | null;
-    daily: { date: string; value: number }[];
+    percentage: number; // 0-10 scale normalized to 0-100
+    peakDay: StressDayPoint | null;
+    calmestDay: StressDayPoint | null;
+    daily: StressDayPoint[];
   };
+  // Rolling last-7-days emotion breakdown
   emotionBreakdown: {
     calmLevel: number;
     happyLevel: number;
@@ -56,6 +90,7 @@ interface DashboardData {
     anxietyLevel: number;
     emotionCounts: Record<string, number>;
   };
+  // Contribution grid — spans the requested `range`, not the rolling week
   grid: { date: string; value: number }[];
   latestEntry: {
     mood: number;
@@ -100,6 +135,9 @@ export const useSubmitCheckIn = () => {
 };
 
 // ─── Get dashboard data ─────────────────────────────────────────────────────
+// `range` still controls the totalCheckIns/streak/grid window (default 30 days).
+// moodTrend, stress, and emotionBreakdown are always the rolling last 7 days,
+// independent of `range`.
 export const useMoodDashboard = (range: number = 30) => {
   return useQuery({
     queryKey: [...MOOD_DASHBOARD_KEY, range],

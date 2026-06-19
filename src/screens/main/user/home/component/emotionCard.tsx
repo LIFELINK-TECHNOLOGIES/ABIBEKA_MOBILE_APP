@@ -22,11 +22,19 @@ export default function EmotionCard({ anim }: { anim: Animated.Value }) {
     R = 46,
     SW = 18;
 
-  const { data, isLoading } = useMoodDashboard(30); // last 30 days for a stable breakdown
+  // emotionBreakdown is always the rolling last 7 days regardless of `range`
+  // (same as moodTrend/stress) — pass 7 so this shares a cache entry with
+  // StressCard instead of firing a second, redundant dashboard fetch.
+  const { data, isLoading } = useMoodDashboard(7);
 
   const breakdown = data?.data?.emotionBreakdown;
 
-  // Map backend's fixed categories to the same shape EMOTIONS used to have
+  // Map backend's fixed categories to the same shape EMOTIONS used to have.
+  // NOTE: these four values are NOT parts of one whole. calmLevel/happyLevel/
+  // anxietyLevel are independent "% of check-ins that included this category"
+  // hit-rates (a single day can count toward more than one), and stressLevel
+  // is a different kind of number entirely (avg raw stress score / 10 * 100).
+  // They can legitimately sum to more or less than 100.
   const EMOTIONS: EmotionItem[] = breakdown
     ? [
         { key: "calm", label: "Calm", pct: breakdown.calmLevel, color: B.primary },
@@ -65,21 +73,27 @@ export default function EmotionCard({ anim }: { anim: Animated.Value }) {
     );
   }
 
+  // Donut shows each category's *relative weight* among the four (so the
+  // ring always closes cleanly), while the legend bars below still show each
+  // one's real, independent percentage. Guard against a 0 total.
+  const totalPct = EMOTIONS.reduce((sum, e) => sum + e.pct, 0) || 1;
+
   let cum = 0;
   const arcs = EMOTIONS.map((e) => {
-    const pct = e.pct / 100;
+    const share = e.pct / totalPct;
     const start = cum * 2 * Math.PI - Math.PI / 2;
-    const end = (cum + pct) * 2 * Math.PI - Math.PI / 2;
-    cum += pct;
+    const end = (cum + share) * 2 * Math.PI - Math.PI / 2;
+    cum += share;
     const x1 = cx + R * Math.cos(start);
     const y1 = cy + R * Math.sin(start);
     const x2 = cx + R * Math.cos(end);
     const y2 = cy + R * Math.sin(end);
-    const lg = pct > 0.5 ? 1 : 0;
+    const lg = share > 0.5 ? 1 : 0;
     return { ...e, d: `M ${x1} ${y1} A ${R} ${R} 0 ${lg} 1 ${x2} ${y2}` };
   });
 
-  // Dominant = highest percentage category
+  // Dominant = highest percentage category (still its own real %, unaffected
+  // by the normalization above)
   const dominant = EMOTIONS.reduce((a, b) => (b.pct > a.pct ? b : a));
 
   return (
@@ -87,7 +101,7 @@ export default function EmotionCard({ anim }: { anim: Animated.Value }) {
       <Card>
         <Text style={styles.cardTitle}>{t('home.emotionBreakdown')}</Text>
         <Text style={[styles.cardSub, { marginBottom: 18 }]}>
-          {t('home.thisMonthTracked', { count: EMOTIONS.length })}
+          {t('home.thisWeekTracked', { count: EMOTIONS.length })}
         </Text>
         <View style={styles.donutRow}>
           <Svg width={SIZE} height={SIZE}>

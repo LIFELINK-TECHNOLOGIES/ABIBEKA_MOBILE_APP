@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Easing,
@@ -21,9 +22,19 @@ import {
   SituationCard,
   StressCard,
 } from "./components/card";
-import { AiInsightCard, SubmitCard } from "./components/result";
+import { SubmitCard } from "./components/result";
 import { QuestionsCard } from "./components/auestionCard";
-import { useSubmitCheckIn } from "../../../../api/hooks/shared/moodEntry"
+import { useSubmitCheckIn, useTodayMoodEntry } from "../../../../api/hooks/shared/moodEntry";
+import { AiInsightCard } from "./components/questions";
+
+// ─── Midnight helper ──────────────────────────────────────────────────────────
+// Check-ins reset at midnight local time. This is the single source of truth
+// for "when does the next window open" — no backend field needed.
+const getMidnightTonight = (): string => {
+  const d = new Date();
+  d.setHours(24, 0, 0, 0); // rolls to 00:00:00.000 of tomorrow
+  return d.toISOString();
+};
 
 // ─── Responsive helpers ───────────────────────────────────────────────────────
 const BASE_W = 390;
@@ -52,10 +63,7 @@ const ProgressHeader = ({ step, streak }: { step: number; streak: number }) => {
     <View
       style={[
         s.progWrap,
-        {
-          paddingHorizontal: scale(20),
-          paddingVertical: isSmall ? 8 : 12,
-        },
+        { paddingHorizontal: scale(20), paddingVertical: isSmall ? 8 : 12 },
       ]}
     >
       <View style={s.progTop}>
@@ -67,9 +75,7 @@ const ProgressHeader = ({ step, streak }: { step: number; streak: number }) => {
         </View>
         <View style={s.streakPill}>
           <Text style={{ fontSize: isSmall ? 12 : 13 }}>🔥</Text>
-          <Text style={[s.streakNum, { fontSize: isSmall ? 11 : 12 }]}>
-            {streak}
-          </Text>
+          <Text style={[s.streakNum, { fontSize: isSmall ? 11 : 12 }]}>{streak}</Text>
         </View>
       </View>
 
@@ -77,11 +83,7 @@ const ProgressHeader = ({ step, streak }: { step: number; streak: number }) => {
         {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
           <View
             key={i}
-            style={[
-              s.dot,
-              i < step && s.dotDone,
-              i === step && s.dotActive,
-            ]}
+            style={[s.dot, i < step && s.dotDone, i === step && s.dotActive]}
           />
         ))}
       </View>
@@ -116,34 +118,24 @@ const StepShell = ({
   return (
     <View style={{ paddingTop: isSmall ? scale(12) : scale(20) }}>
       {eyebrow ? (
-        <Text style={[s.eyebrow, { fontSize: isSmall ? 9 : 10 }]}>
-          {eyebrow}
-        </Text>
+        <Text style={[s.eyebrow, { fontSize: isSmall ? 9 : 10 }]}>{eyebrow}</Text>
       ) : null}
       {question ? (
         <Text
           style={[
             s.bigQ,
-            {
-              fontSize: isSmall ? scale(19) : scale(24),
-              marginBottom: isSmall ? 4 : 6,
-            },
+            { fontSize: isSmall ? scale(19) : scale(24), marginBottom: isSmall ? 4 : 6 },
           ]}
         >
           {question}{" "}
-          {highlight ? (
-            <Text style={s.bigQAccent}>{highlight}</Text>
-          ) : null}
+          {highlight ? <Text style={s.bigQAccent}>{highlight}</Text> : null}
         </Text>
       ) : null}
       {sub ? (
         <Text
           style={[
             s.bigSub,
-            {
-              fontSize: isSmall ? 11 : 13,
-              marginBottom: isSmall ? 14 : 22,
-            },
+            { fontSize: isSmall ? 11 : 13, marginBottom: isSmall ? 14 : 22 },
           ]}
         >
           {sub}
@@ -177,26 +169,18 @@ const IntroStep = ({ onStart }: { onStart: () => void }) => {
         <Text style={{ fontSize: isSmall ? 26 : 34 }}>✨</Text>
       </View>
 
-      <Text
-        style={[
-          s.introTitle,
-          { fontSize: isSmall ? scale(24) : scale(30) },
-        ]}
-      >
+      <Text style={[s.introTitle, { fontSize: isSmall ? scale(24) : scale(30) }]}>
         {"How are you\ntoday?"}
       </Text>
 
       <Text style={[s.introSub, { fontSize: isSmall ? 13 : 14 }]}>
-        A quick 2-min check-in to track your wellbeing.{"\n"}
-        Anonymous & private.
+        A quick 2-min check-in to track your wellbeing.{"\n"}Anonymous & private.
       </Text>
 
       <View style={s.introPills}>
         {["😌 Anonymous", "⚡ 2 minutes", "🔒 Private"].map((p) => (
           <View key={p} style={s.introPill}>
-            <Text style={[s.introPillText, { fontSize: isSmall ? 11 : 12 }]}>
-              {p}
-            </Text>
+            <Text style={[s.introPillText, { fontSize: isSmall ? 11 : 12 }]}>{p}</Text>
           </View>
         ))}
       </View>
@@ -221,7 +205,7 @@ const IntroStep = ({ onStart }: { onStart: () => void }) => {
   );
 };
 
-// ─── Inline nav — sits inside scroll, not pinned ──────────────────────────────
+// ─── Inline nav ───────────────────────────────────────────────────────────────
 const InlineNav = ({
   step,
   canAdvance,
@@ -234,24 +218,18 @@ const InlineNav = ({
   onBack: () => void;
 }) => {
   const { isSmall, scale } = useScale();
-  const btnH = isSmall ? 44 : 50;
+  const btnH   = isSmall ? 44 : 50;
   const radius = isSmall ? 13 : 15;
-  const label =
-    step === 7 ? "View Summary" : step === 8 ? "Done" : "Continue";
+  const label  = step === 7 ? "View Summary" : step === 8 ? "Done" : "Continue";
 
   return (
     <View style={[s.navWrap, { marginTop: isSmall ? 20 : 28 }]}>
       <View style={s.navRow}>
         <Pressable
           onPress={onBack}
-          style={[
-            s.backPill,
-            { width: btnH, height: btnH, borderRadius: radius },
-          ]}
+          style={[s.backPill, { width: btnH, height: btnH, borderRadius: radius }]}
         >
-          <Text style={[s.backPillText, { fontSize: isSmall ? 16 : 18 }]}>
-            ←
-          </Text>
+          <Text style={[s.backPillText, { fontSize: isSmall ? 16 : 18 }]}>←</Text>
         </Pressable>
 
         <TouchableOpacity
@@ -264,27 +242,44 @@ const InlineNav = ({
             !canAdvance && s.nextDisabled,
           ]}
         >
-          <Text style={[s.nextText, { fontSize: isSmall ? 13 : 15 }]}>
-            {label}
-          </Text>
-          <Text style={{ fontSize: isSmall ? 14 : 16, color: "#fff", opacity: 0.8 }}>
-            →
-          </Text>
+          <Text style={[s.nextText, { fontSize: isSmall ? 13 : 15 }]}>{label}</Text>
+          <Text style={{ fontSize: isSmall ? 14 : 16, color: "#fff", opacity: 0.8 }}>→</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 };
 
-
-
-
-
-
-
-
-
-
+// ─── Already-checked-in screen ────────────────────────────────────────────────
+// Shown immediately when the user opens the screen and the backend confirms
+// they already checked in today (e.g. after logout + re-login).
+const AlreadyCheckedIn = ({ streak }: { streak: number }) => (
+  <View style={s.root}>
+    <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+    <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+      <ProgressHeader step={TOTAL_STEPS} streak={streak} />
+      <ScrollView
+        contentContainerStyle={[s.scroll, { paddingHorizontal: 22 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <StepShell
+          eyebrow="All done"
+          question="You're"
+          highlight="all set."
+          sub="Your check-in has been recorded anonymously."
+        >
+          {/* submitted=true, nextCheckIn computed from local midnight */}
+          <SubmitCard
+            onSubmit={() => {}}
+            submitted
+            nextCheckIn={getMidnightTonight()}
+          />
+        </StepShell>
+        <View style={{ height: 32 }} />
+      </ScrollView>
+    </SafeAreaView>
+  </View>
+);
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 interface AssessmentScreenProps {
@@ -297,8 +292,13 @@ export default function AssessmentScreen({
   onComplete,
 }: AssessmentScreenProps) {
   const { scale } = useScale();
-  const [step, setStep] = useState(0);
-  const [state, setState] = useState<AssessmentState>({
+
+  // ── Check if the user already submitted today (persists across sessions) ──
+  const { data: todayData, isLoading: checkingToday } = useTodayMoodEntry();
+  const alreadyDoneToday = todayData?.checkedInToday === true;
+
+  const [step, setStep]       = useState(0);
+  const [state, setState]     = useState<AssessmentState>({
     mood: null,
     emotions: [],
     energy: 5,
@@ -306,13 +306,11 @@ export default function AssessmentScreen({
     situations: [],
     answers: {},
   });
+  // submitted tracks whether the user just finished within this session
   const [submitted, setSubmitted] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
-  const cardAnim = useRef(new Animated.Value(0)).current;
-  
-
-  const [nextCheckIn, setNextCheckIn] = useState<string | null>(null);
+  const cardAnim  = useRef(new Animated.Value(0)).current;
 
   const { mutate: submitCheckIn, isPending: isSubmitting } = useSubmitCheckIn();
 
@@ -324,12 +322,24 @@ export default function AssessmentScreen({
       friction: 13,
       useNativeDriver: true,
     }).start();
-    setTimeout(
-      () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
-      80,
-    );
+    setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), 80);
   }, [step]);
 
+  // ── Loading state while we check today's entry ────────────────────────────
+  if (checkingToday) {
+    return (
+      <View style={[s.root, { alignItems: "center", justifyContent: "center" }]}>
+        <ActivityIndicator color={B.primary} size="large" />
+      </View>
+    );
+  }
+
+  // ── Already checked in today — show countdown immediately ─────────────────
+  if (alreadyDoneToday) {
+    return <AlreadyCheckedIn streak={streak} />;
+  }
+
+  // ── Normal flow ───────────────────────────────────────────────────────────
   const advance = () => { if (step < 8) setStep((v) => v + 1); };
   const back    = () => { if (step > 0) setStep((v) => v - 1); };
 
@@ -359,17 +369,19 @@ export default function AssessmentScreen({
       },
       {
         onSuccess: () => {
-           setNextCheckIn(data.nextCheckIn);
+          // Mark as submitted; SubmitCard derives the countdown from
+          // getMidnightTonight() — no backend field needed.
           setSubmitted(true);
           onComplete?.(state);
         },
         onError: (err: any) => {
           Alert.alert(
             "Error",
-            err?.response?.data?.message || "Failed to save your check-in. Please try again."
+            err?.response?.data?.message ||
+              "Failed to save your check-in. Please try again.",
           );
         },
-      }
+      },
     );
   };
 
@@ -401,10 +413,7 @@ export default function AssessmentScreen({
             highlight="feeling right now?"
             sub="Pick the one that feels closest."
           >
-            <MoodCard
-              selected={state.mood}
-              onSelect={(i) => update({ mood: i })}
-            />
+            <MoodCard selected={state.mood} onSelect={(i) => update({ mood: i })} />
           </StepShell>
         );
       case 2:
@@ -435,10 +444,7 @@ export default function AssessmentScreen({
             highlight="energy today?"
             sub="Think about your physical and mental energy."
           >
-            <EnergyCard
-              value={state.energy}
-              onChange={(v) => update({ energy: v })}
-            />
+            <EnergyCard value={state.energy} onChange={(v) => update({ energy: v })} />
           </StepShell>
         );
       case 4:
@@ -449,10 +455,7 @@ export default function AssessmentScreen({
             highlight="stress level?"
             sub="Be honest — this is just for you."
           >
-            <StressCard
-              value={state.stress}
-              onChange={(v) => update({ stress: v })}
-            />
+            <StressCard value={state.stress} onChange={(v) => update({ stress: v })} />
           </StepShell>
         );
       case 5:
@@ -521,7 +524,9 @@ export default function AssessmentScreen({
               onSubmit={handleSubmit}
               submitted={submitted}
               isSubmitting={isSubmitting}
-               nextCheckIn={nextCheckIn}
+              // Only pass nextCheckIn once submitted so the countdown
+              // starts exactly when the user completes the flow.
+              nextCheckIn={submitted ? getMidnightTonight() : null}
             />
           </StepShell>
         );
@@ -532,28 +537,18 @@ export default function AssessmentScreen({
 
   return (
     <View style={s.root}>
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="light-content"
-      />
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
       <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
         <ProgressHeader step={Math.max(0, step - 1)} streak={streak} />
 
         <ScrollView
           ref={scrollRef}
-          contentContainerStyle={[
-            s.scroll,
-            { paddingHorizontal: scale(22) },
-          ]}
+          contentContainerStyle={[s.scroll, { paddingHorizontal: scale(22) }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Animated.View style={cardStyle}>
-            {renderStep()}
-          </Animated.View>
+          <Animated.View style={cardStyle}>{renderStep()}</Animated.View>
 
-          {/* Inline nav — no pinned bar */}
           {step > 0 && step <= 8 && (
             <Animated.View style={cardStyle}>
               <InlineNav
@@ -577,7 +572,6 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: B.bg },
   scroll: { paddingTop: 8, paddingBottom: 24 },
 
-  // Progress
   progWrap: {
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.05)",
@@ -589,7 +583,7 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   progTitle: { fontWeight: "800", color: B.text, letterSpacing: -0.2 },
-  progSub: { fontSize: 11, color: B.muted, marginTop: 2 },
+  progSub:   { fontSize: 11, color: B.muted, marginTop: 2 },
   streakPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -602,23 +596,13 @@ const s = StyleSheet.create({
     borderColor: B.amber + "25",
   },
   streakNum: { fontWeight: "800", color: B.amber },
-  dotRow: { flexDirection: "row", gap: 4 },
-  dot: {
-    flex: 1,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "rgba(255,255,255,0.07)",
-  },
+  dotRow:    { flexDirection: "row", gap: 4 },
+  dot:       { flex: 1, height: 3, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.07)" },
   dotDone:   { backgroundColor: B.primary },
   dotActive: { backgroundColor: B.primary + "55" },
-  progMeta: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 4,
-  },
-  progPct: { fontSize: 9, color: B.muted2 },
+  progMeta:  { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
+  progPct:   { fontSize: 9, color: B.muted2 },
 
-  // Shell
   eyebrow: {
     fontWeight: "700",
     color: B.primary,
@@ -626,16 +610,10 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 8,
   },
-  bigQ: {
-    fontWeight: "900",
-    color: B.text,
-    letterSpacing: -0.6,
-    lineHeight: 1.15 * 24,
-  },
+  bigQ:       { fontWeight: "900", color: B.text, letterSpacing: -0.6, lineHeight: 1.15 * 24 },
   bigQAccent: { color: B.primary },
-  bigSub: { color: B.muted, lineHeight: 20 },
+  bigSub:     { color: B.muted, lineHeight: 20 },
 
-  // Intro
   introWrap: { alignItems: "center" },
   introIcon: {
     backgroundColor: B.primary + "18",
@@ -652,11 +630,7 @@ const s = StyleSheet.create({
     textAlign: "center",
     lineHeight: 36,
   },
-  introSub: {
-    color: B.muted,
-    textAlign: "center",
-    lineHeight: 22,
-  },
+  introSub: { color: B.muted, textAlign: "center", lineHeight: 22 },
   introPills: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -686,9 +660,8 @@ const s = StyleSheet.create({
   },
   startBtnText: { fontWeight: "800", color: "#fff" },
 
-  // Inline nav
   navWrap: { width: "100%" },
-  navRow: { flexDirection: "row", gap: 10, alignItems: "center" },
+  navRow:  { flexDirection: "row", gap: 10, alignItems: "center" },
   backPill: {
     backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,

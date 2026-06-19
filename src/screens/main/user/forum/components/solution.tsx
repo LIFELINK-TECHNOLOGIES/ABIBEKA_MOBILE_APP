@@ -15,7 +15,6 @@ import {
 import { useTranslation } from 'react-i18next';
 import {
   B,
-  ORG,
   SOL_TAG,
   SOL_STATUS,
   PODIUM_COLORS,
@@ -25,6 +24,7 @@ import {
   useVoteSolution,
   useCreateSolution,
 } from '../../../../../api/hooks/organization/useSolution';
+import { useAuthStore } from '../../../../../store/authStore'; 
 
 
 export type SolutionTag =
@@ -57,6 +57,16 @@ export interface Solution {
   weekLabel: 'This week' | 'Last week' | null;
 }
 
+// ─── Helper: get organization info from store ─────────────────────────────
+const useOrganizationInfo = () => {
+  const user = useAuthStore((state) => state.user);
+  return {
+    name: user?.organization || user?.joinedOrganizationName || 'Organization',
+    id: user?.organizationId || user?.id || '',
+    isOrganization: user?.role === 'ORGANIZATION',
+  };
+};
+
 // ─── Helper: turn the backend's ISO postedAt into a compact relative label ──
 const formatRelativeTime = (iso: string) => {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -71,12 +81,6 @@ const formatRelativeTime = (iso: string) => {
 };
 
 // ─── Helper: safe lookups for SOL_STATUS / SOL_TAG ───────────────────────────
-// SOL_STATUS / SOL_TAG are plain objects keyed by the exact strings used in
-// the Solution model. If the constants file ever drifts from that schema
-// again, an unknown key returns `undefined` and reading `.bg`/`.color` off
-// it crashes the screen. These wrappers fall back to a neutral style instead
-// and log which key was missing, so a future mismatch is a console warning
-// instead of a crash.
 const STATUS_FALLBACK = {
   label: 'Unknown',
   color: B.muted,
@@ -339,8 +343,6 @@ const Leaderboard = ({ solutions }: { solutions: Solution[] }) => {
 };
 
 // ─── Solutions: New solution sheet ───────────────────────────────────────────
-// Now posts directly via useCreateSolution — parent only needs to control
-// `visible`/`onClose`, it no longer has to wire up the API call itself.
 export const NewSolutionSheet = ({
   visible,
   onClose,
@@ -357,7 +359,7 @@ export const NewSolutionSheet = ({
   const [mounted, setMounted] = useState(false);
 
   const { mutate: createSolution, isPending, error: createError } = useCreateSolution();
-  console.log(createError)
+  const { name: orgName } = useOrganizationInfo();
 
   React.useEffect(() => {
     if (visible) {
@@ -408,7 +410,7 @@ export const NewSolutionSheet = ({
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.sheetTitle}>{t('forum.postSolution')}</Text>
-              <Text style={s.sheetSub}>{t('forum.visibleSignedAs', { org: ORG.name })}</Text>
+              <Text style={s.sheetSub}>{t('forum.visibleSignedAs', { org: orgName })}</Text>
             </View>
             <Pressable onPress={onClose} hitSlop={12}>
               <Text style={{ fontSize: 20, color: B.muted }}>✕</Text>
@@ -520,8 +522,6 @@ export const NewSolutionSheet = ({
 };
 
 // ─── Solutions tab ────────────────────────────────────────────────────────────
-// Now fetches and votes via the hooks directly. Parent only needs to tell it
-// who's looking (isOrganization) and where the FAB should send them.
 export const SolutionsTab = ({
   isOrganization,
   onNewSolution,
@@ -532,6 +532,7 @@ export const SolutionsTab = ({
   const { t } = useTranslation();
   const { data: solutions = [], isLoading, isError } = useSolutions();
   const { mutate: vote } = useVoteSolution();
+  const { name: orgName } = useOrganizationInfo();
 
   const handleVote = (id: string, dir: 'up' | 'down') => {
     vote({ id, type: dir });
@@ -552,7 +553,7 @@ export const SolutionsTab = ({
           <Text style={s.solHeroSub}>
             {isOrganization
               ? t('forum.heroSubOrg')
-              : t('forum.heroSubUser', { org: ORG.name })}
+              : t('forum.heroSubUser', { org: orgName })}
           </Text>
         </View>
       </View>
@@ -562,7 +563,7 @@ export const SolutionsTab = ({
           <View style={s.readOnlyBanner}>
             <Text style={{ fontSize: 14 }}>👁️</Text>
             <Text style={s.readOnlyText}>
-              {t('forum.readOnlyHint', { org: ORG.name })}
+              {t('forum.readOnlyHint', { org: orgName })}
             </Text>
           </View>
         )}
