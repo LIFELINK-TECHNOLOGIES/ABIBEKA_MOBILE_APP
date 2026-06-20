@@ -31,6 +31,7 @@ interface SubmitCheckInResponse {
   success: boolean;
   message: string;
   data: MoodEntryDoc;
+  nextCheckIn: string; // ISO date string for the start of the next allowed day
 }
 
 // A single day's mood point, used for moodTrend.daily / bestDay / worstDay
@@ -112,6 +113,7 @@ interface TodayEntryResponse {
   success: boolean;
   data: MoodEntryDoc | null;
   checkedInToday: boolean;
+  nextCheckIn: string | null; // ISO date string; null until the user has checked in today
 }
 
 // ─── Query keys ───────────────────────────────────────────────────────────
@@ -127,7 +129,7 @@ export const useSubmitCheckIn = () => {
       const { data } = await api.post<SubmitCheckInResponse>(MoodEntry.POST_DATA, payload);
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MOOD_DASHBOARD_KEY });
       queryClient.invalidateQueries({ queryKey: MOOD_TODAY_KEY });
     },
@@ -151,6 +153,9 @@ export const useMoodDashboard = (range: number = 30) => {
 };
 
 // ─── Get today's entry (check if user already checked in) ──────────────────
+// staleTime: 0 + refetchOnMount: 'always' ensures this re-verifies with the
+// server every time the check-in screen mounts — including after logout/login
+// or switching accounts on the same device — instead of trusting a stale cache.
 export const useTodayMoodEntry = () => {
   return useQuery({
     queryKey: MOOD_TODAY_KEY,
@@ -158,5 +163,7 @@ export const useTodayMoodEntry = () => {
       const { data } = await api.get<TodayEntryResponse>(MoodEntry.TODAY_DATA);
       return data;
     },
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 };

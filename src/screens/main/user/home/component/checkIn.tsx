@@ -196,7 +196,7 @@ export default function CheckInCard({ anim }: { anim: Animated.Value }) {
 
         {!hasCheckedIn && (
           <Pressable
-            onPress={() => navigation.navigate("CheckIn")}
+            onPress={() => navigation.navigate("Assessment")}
             style={s.cta}
           >
             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>

@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
+import * as SecureStore from 'expo-secure-store';
+import { queryClient } from "../utils/queryClient"
 
 type UserRole = 'employee' | 'organization' | null;
 
@@ -24,12 +27,14 @@ interface AuthState {
   isAuthenticated: boolean;
   userRole: UserRole;
   user: UserData | null;
+  hasHydrated: boolean; // true once SecureStore has finished loading on app start
 
   // Actions
   setIsOnboarded: (value: boolean) => void;
   setIsAuthenticated: (value: boolean) => void;
   setUserRole: (role: UserRole) => void;
   setUser: (user: UserData) => void;
+  setHasHydrated: (value: boolean) => void;
 
   // Combined actions for common scenarios
   completeOnboarding: (role: UserRole) => void;
@@ -43,40 +48,77 @@ const initialState = {
   isAuthenticated: false,
   userRole: null as UserRole,
   user: null as UserData | null,
+  hasHydrated: false,
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
-  ...initialState,
+// Adapts expo-secure-store's API to the shape zustand/persist expects
+const secureStorage: StateStorage = {
+  getItem: async (name) => {
+    return (await SecureStore.getItemAsync(name)) ?? null;
+  },
+  setItem: async (name, value) => {
+    await SecureStore.setItemAsync(name, value);
+  },
+  removeItem: async (name) => {
+    await SecureStore.deleteItemAsync(name);
+  },
+};
 
-  // Individual setters
-  setIsOnboarded: (value: boolean) => set({ isOnboarded: value }),
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      ...initialState,
 
-  setIsAuthenticated: (value: boolean) => set({ isAuthenticated: value }),
+      setIsOnboarded: (value) => set({ isOnboarded: value }),
+      setIsAuthenticated: (value) => set({ isAuthenticated: value }),
+      setUserRole: (role) => set({ userRole: role }),
+      setUser: (user) => set({ user }),
+      setHasHydrated: (value) => set({ hasHydrated: value }),
 
-  setUserRole: (role: UserRole) => set({ userRole: role }),
+      completeOnboarding: (role) =>
+        set({
+          isOnboarded: true,
+          userRole: role,
+        }),
 
-  setUser: (user: UserData) => set({ user }),
+      login: (role, user) =>
+        set({
+          isAuthenticated: true,
+          userRole: role,
+          user: user ?? null,
+        }),
 
-  // Combined actions
-  completeOnboarding: (role: UserRole) =>
-    set({
-      isOnboarded: true,
-      userRole: role,
+      logout: () => {
+        // Wipe every cached server response (mood entries, dashboard, etc.)
+        // so the next user on this device never sees stale data, and this
+        // user never sees a flash of stale data if they log back in fast.
+        queryClient.clear();
+
+        set({
+          isAuthenticated: false,
+          userRole: null,
+          user: null,
+        });
+      },
+
+      reset: () => {
+        queryClient.clear();
+        set(initialState);
+      },
     }),
-
-  login: (role: UserRole, user?: UserData) =>
-    set({
-      isAuthenticated: true,
-      userRole: role,
-      user: user ?? null,
-    }),
-
-  logout: () =>
-    set({
-      isAuthenticated: false,
-      userRole: null,
-      user: null,
-    }),
-
-  reset: () => set(initialState),
-}));
+    {
+      name: 'auth-storage',
+      storage: createJSONStorage(() => secureStorage),
+      // Don't persist hasHydrated itself
+      partialize: (state) => ({
+        isOnboarded: state.isOnboarded,
+        isAuthenticated: state.isAuthenticated,
+        userRole: state.userRole,
+        user: state.user,
+      }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+    }
+  )
+);

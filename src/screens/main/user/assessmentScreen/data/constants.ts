@@ -30,14 +30,7 @@ export const MOODS = [
   { emoji: "😌", label: "Calm", sub: "Peaceful and settled", color: B.teal },
   { emoji: "😐", label: "Okay", sub: "Getting through it", color: "#64748B" },
   { emoji: "😔", label: "Sad", sub: "A bit down today", color: B.violet },
-  { emoji: "😢", label: "Tearful", sub: "Emotions running high", color: B.sky },
-  {
-    emoji: "😤",
-    label: "Frustrated",
-    sub: "Things are irritating",
-    color: B.amber,
-  },
-  { emoji: "😰", label: "Overwhelmed", sub: "Too much at once", color: B.red },
+  { emoji: "😢", label: "Tearful", sub: "Emotions running high", color: B.sky }
 ];
 
 export const EMOTIONS = [

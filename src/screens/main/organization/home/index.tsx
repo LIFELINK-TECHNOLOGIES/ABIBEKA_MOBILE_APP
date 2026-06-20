@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, ScrollView, Text, StyleSheet, SafeAreaView } from 'react-native';
 import { C } from './components/tokens';
 
@@ -13,148 +13,212 @@ import { Departments, DeptData } from './components/Department';
 import { EmotionChips, EmotionChip } from './components/EmotionChips';
 import { StressHeatmap, HeatDay } from './components/StressHeapMap';
 import { QuickActions, QuickAction } from './components/QuickActions';
-
 import { DashboardSkeleton } from './components/DashboardSkeleton';
 import { EmptyState } from './components/Empty';
 
-// ─── Dashboard data shape ──────────────────────────────────────────────────────
-type DashboardData = {
-  header: {
-    orgName: string;
-    departmentCount: number;
-    employeeCount: number;
-    role: string;
-  };
-  alertMessage: string;
-  headlineStats: HeadlineStat[];
-  pulse: { score: number; status: string; statusColor: string; delta: string };
-  productivity: ProductivityMetric[];
-  moods: MoodItem[];
-  departments: DeptData[];
-  emotionChips: EmotionChip[];
-  heatmapDays: HeatDay[];
-  quickActions: QuickAction[];
+import { useOrgDashboard, OrgDashboardRaw } from '../../../../api/hooks/organization/useOrgStats';
+
+// ─── Static data ──────────────────────────────────────────────────────────────
+const QUICK_ACTIONS: QuickAction[] = [
+  { icon: '📣', label: 'Announce' },
+  { icon: '📅', label: 'Schedule' },
+  { icon: '📊', label: 'Report'   },
+  { icon: '⚙️', label: 'Settings' },
+];
+
+// ─── Transform helpers ────────────────────────────────────────────────────────
+const pulseColor = (score: number) =>
+  score >= 70 ? C.green : score >= 50 ? C.amber : C.red;
+
+// high value good (mood, energy) → green when high
+const goodColor = (pct: number) =>
+  pct >= 65 ? C.green : pct >= 40 ? C.amber : C.red;
+
+// high value bad (stress, burnout) → green when LOW
+const badColor = (pct: number) =>
+  pct <= 30 ? C.green : pct <= 55 ? C.amber : C.red;
+
+const pulseStatus = (score: number) => {
+  if (score >= 80) return { label: 'Excellent 🚀', color: C.green };
+  if (score >= 65) return { label: 'Good 👍',       color: C.green };
+  if (score >= 50) return { label: 'Moderate ⚡',   color: C.amber };
+  return               { label: 'Needs attention ⚠️', color: C.red };
 };
 
-// ─── Mock fetch — swap with real API call ──────────────────────────────────────
-const MOCK_DATA: DashboardData = {
-  header: { orgName: 'Acme Corp', departmentCount: 4, employeeCount: 48, role: 'Admin' },
-  alertMessage: 'Engineering stress up 31% this week · consider a check-in',
-  headlineStats: [
-    { label: 'Total employees', val: '48', sub: 'across 4 depts', subColor: C.muted },
-    { label: 'Checked in today', val: '31', valSuffix: '/48', sub: '↑ 65% rate', subColor: C.green },
-    { label: 'Active now', val: '12', sub: '● online', subColor: C.teal },
-  ],
-  pulse: { score: 74, status: 'Good 👍', statusColor: C.green, delta: '↑ +6 pts vs last week' },
-  productivity: [
-    { label: 'Avg focus score', val: '7.2', suffix: '/10', sub: '↑ +0.6 this week', subColor: C.green, pct: 72, color: C.green },
-    { label: 'Burnout risk', val: '24', suffix: '%', sub: '↑ moderate risk', subColor: C.amber, pct: 24, color: C.amber },
-    { label: 'Energy level', val: '6.1', suffix: '/10', sub: '→ stable', subColor: C.muted, pct: 61, color: C.teal },
-    { label: 'Absenteeism risk', val: '18', suffix: '%', sub: '↑ watch closely', subColor: C.red, pct: 18, color: C.red },
-  ],
-  moods: [
-    { name: '😌 Calm', pct: 42, color: C.teal },
-    { name: '😤 Stressed', pct: 28, color: C.amber },
-    { name: '😊 Great', pct: 18, color: C.green },
-    { name: '😔 Low', pct: 8, color: C.purple },
-    { name: '😐 Okay', pct: 4, color: '#94A3B8' },
-  ],
-  departments: [
-    {
-      icon: '💻', name: 'Engineering', count: '14 members', pulse: '42',
-      pulseColor: C.red, iconBg: 'rgba(239,68,68,0.1)', iconBorder: 'rgba(239,68,68,0.2)', redBorder: true,
-      metrics: [
-        { label: 'Mood', val: '4.8', suffix: '/10', valColor: C.red, pct: 48, barColor: C.red },
-        { label: 'Stress', val: '78', suffix: '%', valColor: C.red, pct: 78, barColor: C.red },
-        { label: 'Check-in', val: '9', suffix: '/14', valColor: C.text, pct: 64, barColor: C.teal },
-        { label: 'Energy', val: '5.1', suffix: '/10', valColor: C.amber, pct: 51, barColor: C.amber },
-      ],
-    },
-    {
-      icon: '🎨', name: 'Design', count: '8 members', pulse: '81',
-      pulseColor: C.green, iconBg: 'rgba(15,118,110,0.1)', iconBorder: 'rgba(15,118,110,0.2)', redBorder: false,
-      metrics: [
-        { label: 'Mood', val: '8.1', suffix: '/10', valColor: C.green, pct: 81, barColor: C.green },
-        { label: 'Stress', val: '32', suffix: '%', valColor: C.green, pct: 32, barColor: C.green },
-        { label: 'Check-in', val: '7', suffix: '/8', valColor: C.text, pct: 87, barColor: C.teal },
-        { label: 'Energy', val: '7.8', suffix: '/10', valColor: C.green, pct: 78, barColor: C.green },
-      ],
-    },
-    {
-      icon: '📈', name: 'Sales', count: '16 members', pulse: '58',
-      pulseColor: C.amber, iconBg: 'rgba(245,158,11,0.1)', iconBorder: 'rgba(245,158,11,0.2)', redBorder: false,
-      metrics: [
-        { label: 'Mood', val: '6.2', suffix: '/10', valColor: C.text, pct: 62, barColor: C.amber },
-        { label: 'Stress', val: '61', suffix: '%', valColor: C.amber, pct: 61, barColor: C.amber },
-        { label: 'Check-in', val: '10', suffix: '/16', valColor: C.text, pct: 62, barColor: C.teal },
-        { label: 'Energy', val: '6.5', suffix: '/10', valColor: C.text, pct: 65, barColor: C.amber },
-      ],
-    },
-    {
-      icon: '🤝', name: 'HR', count: '10 members', pulse: '76',
-      pulseColor: C.green, iconBg: 'rgba(139,92,246,0.1)', iconBorder: 'rgba(139,92,246,0.2)', redBorder: false,
-      metrics: [
-        { label: 'Mood', val: '7.6', suffix: '/10', valColor: C.green, pct: 76, barColor: C.green },
-        { label: 'Stress', val: '38', suffix: '%', valColor: C.green, pct: 38, barColor: C.green },
-        { label: 'Check-in', val: '8', suffix: '/10', valColor: C.text, pct: 80, barColor: C.teal },
-        { label: 'Energy', val: '7.2', suffix: '/10', valColor: C.green, pct: 72, barColor: C.green },
-      ],
-    },
-  ],
-  emotionChips: [
-    { label: '😌 Calm · 38%', bg: 'rgba(15,118,110,0.1)', border: 'rgba(15,118,110,0.28)', color: '#5DCAA5' },
-    { label: '😬 Stressed · 24%', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.28)', color: C.amber },
-    { label: '💭 Overthinking · 18%', bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.28)', color: '#A78BFA' },
-    { label: '🙌 Motivated · 12%', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.28)', color: C.green },
-    { label: '😰 Anxious · 8%', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.28)', color: '#F87171' },
-  ],
-  heatmapDays: [
-    { day: 'Mon', bg: 'rgba(34,197,94,0.22)' },
-    { day: 'Tue', bg: 'rgba(245,158,11,0.30)' },
-    { day: 'Wed', bg: 'rgba(245,158,11,0.18)' },
-    { day: 'Thu', bg: 'rgba(239,68,68,0.42)' },
-    { day: 'Fri', bg: 'rgba(245,158,11,0.28)' },
-    { day: 'Sat', bg: 'rgba(34,197,94,0.12)' },
-    { day: 'Sun', bg: 'rgba(34,197,94,0.08)' },
-  ],
-  quickActions: [
-    { icon: '📣', label: 'Announce' },
-    { icon: '📅', label: 'Schedule' },
-    { icon: '📊', label: 'Report' },
-    { icon: '⚙️', label: 'Settings' },
-  ],
+const DEPT_ICONS: Record<string, string> = {
+  engineer: '💻', design: '🎨', product: '🧩', sales: '📈',
+  marketing: '📣', hr: '🤝', finance: '💰', legal: '⚖️',
+  ops: '⚙️', data: '📊', support: '🎧', general: '🏢',
+};
+const deptIcon = (name: string) => {
+  const key = Object.keys(DEPT_ICONS).find((k) => name.toLowerCase().includes(k));
+  return key ? DEPT_ICONS[key] : '🏢';
 };
 
-// ─── Main screen ──────────────────────────────────────────────────────────────
+const EMOTION_EMOJI: Record<string, string> = {
+  Calm: '😌', Stressed: '😬', Anxious: '😰', Overwhelmed: '😵',
+  Grateful: '🙏', Motivated: '🙌', Tired: '😴', Happy: '😊',
+  Sad: '😔', Focused: '🎯', Burned: '🔥', Overthinking: '💭',
+};
+const emojiFor = (e: string) =>
+  EMOTION_EMOJI[e] ??
+  EMOTION_EMOJI[Object.keys(EMOTION_EMOJI).find((k) => e.includes(k)) ?? ''] ??
+  '💬';
+
+const CHIP_PALETTES = [
+  { bg: 'rgba(15,118,110,0.1)',  border: 'rgba(15,118,110,0.28)',  color: '#5DCAA5' },
+  { bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.28)',  color: C.amber  },
+  { bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.28)', color: '#A78BFA' },
+  { bg: 'rgba(34,197,94,0.1)',  border: 'rgba(34,197,94,0.28)',   color: C.green  },
+  { bg: 'rgba(239,68,68,0.1)',  border: 'rgba(239,68,68,0.28)',   color: '#F87171' },
+  { bg: 'rgba(56,189,248,0.1)', border: 'rgba(56,189,248,0.28)', color: '#38BDF8' },
+];
+
+const heatBg = (intensity: number) => {
+  if (intensity <= 0.2) return `rgba(34,197,94,${(0.1 + intensity * 0.6).toFixed(2)})`;
+  if (intensity <= 0.5) return `rgba(245,158,11,${(0.1 + intensity * 0.5).toFixed(2)})`;
+  return `rgba(239,68,68,${(0.1 + intensity * 0.6).toFixed(2)})`;
+};
+
+// ─── Main transform: raw API → component props ────────────────────────────────
+const buildDashboardProps = (raw: OrgDashboardRaw) => {
+  const {
+    totalEmployees, departmentCount, totalCheckInsToday, checkInRate,
+    goodLevel, moodDistribution, departments, topEmotions, stressHeatmap,
+    alertDept, alertStressChange,
+  } = raw;
+
+  const checkedInDepts = departments.filter((d) => d.checkedInToday > 0);
+  const totalCI        = checkedInDepts.reduce((s, d) => s + d.checkedInToday, 0);
+  const weightedMood   = totalCI > 0
+    ? checkedInDepts.reduce((s, d) => s + d.avgMood * d.checkedInToday, 0) / totalCI : 0;
+  const weightedEnergy = totalCI > 0
+    ? checkedInDepts.reduce((s, d) => s + d.avgEnergy * d.checkedInToday, 0) / totalCI : 0;
+
+  const burnoutRisk     = moodDistribution.stressed;
+  const absenteeismRisk = 100 - checkInRate;
+  const ps              = pulseStatus(goodLevel);
+
+  const alertMessage = alertDept && alertStressChange !== null
+    ? `${alertDept} stress ${alertStressChange > 0 ? 'up' : 'down'} ${Math.abs(alertStressChange)}% this week · consider a check-in`
+    : alertDept
+      ? `${alertDept} has the highest stress level this week`
+      : 'No significant stress alerts this week 🎉';
+
+  const headlineStats: HeadlineStat[] = [
+    {
+      label: 'Total employees', val: `${totalEmployees}`,
+      sub: `across ${departmentCount} dept${departmentCount !== 1 ? 's' : ''}`,
+      subColor: C.muted,
+    },
+    {
+      label: 'Checked in today', val: `${totalCheckInsToday}`,
+      valSuffix: `/${totalEmployees}`,
+      sub: `↑ ${checkInRate}% rate`,
+      subColor: checkInRate >= 60 ? C.green : C.amber,
+    },
+    {
+      label: 'Active today', val: `${totalCheckInsToday}`,
+      sub: '● checked in', subColor: C.teal,
+    },
+  ];
+
+  const pulse = { score: goodLevel, status: ps.label, statusColor: ps.color,
+    delta: `${goodLevel >= 65 ? '↑' : '↓'} wellness score` };
+
+  const productivity: ProductivityMetric[] = [
+    {
+      label: 'Avg mood score', val: weightedMood.toFixed(1), suffix: '/10',
+      sub: weightedMood >= 6.5 ? '↑ healthy range' : '↓ below average',
+      subColor: weightedMood >= 6.5 ? C.green : C.red,
+      pct: Math.round((weightedMood / 10) * 100),
+      color: goodColor(Math.round((weightedMood / 10) * 100)),
+    },
+    {
+      label: 'Burnout risk', val: `${burnoutRisk}`, suffix: '%',
+      sub: burnoutRisk >= 40 ? '↑ high — act now' : burnoutRisk >= 25 ? '↑ moderate risk' : '→ low risk',
+      subColor: badColor(burnoutRisk), pct: burnoutRisk, color: badColor(burnoutRisk),
+    },
+    {
+      label: 'Energy level', val: weightedEnergy.toFixed(1), suffix: '/10',
+      sub: weightedEnergy >= 6 ? '→ stable' : '↓ low energy',
+      subColor: weightedEnergy >= 6 ? C.muted : C.red,
+      pct: Math.round((weightedEnergy / 10) * 100),
+      color: goodColor(Math.round((weightedEnergy / 10) * 100)),
+    },
+    {
+      label: 'Absenteeism risk', val: `${absenteeismRisk}`, suffix: '%',
+      sub: absenteeismRisk >= 50 ? '↑ watch closely' : '→ acceptable',
+      subColor: badColor(absenteeismRisk), pct: absenteeismRisk, color: badColor(absenteeismRisk),
+    },
+  ];
+
+  const moods: MoodItem[] = [
+    { name: '😌 Calm',     pct: moodDistribution.calm,     color: C.teal  },
+    { name: '😤 Stressed', pct: moodDistribution.stressed, color: C.amber },
+    { name: '😊 Great',    pct: moodDistribution.great,    color: C.green },
+    { name: '😔 Low',      pct: moodDistribution.low,      color: '#8B5CF6' },
+    { name: '😐 Okay',     pct: moodDistribution.okay,     color: '#94A3B8' },
+  ].filter((m) => m.pct > 0);
+
+  const depts: DeptData[] = departments.map((d) => {
+    const pc    = pulseColor(d.pulseScore);
+    const icon  = deptIcon(d.name);
+    const isRed = d.pulseScore < 50;
+    return {
+      icon, name: d.name,
+      count: `${d.memberCount} member${d.memberCount !== 1 ? 's' : ''}`,
+      pulse: `${d.pulseScore}`,
+      pulseColor: pc,
+      iconBg:     isRed ? 'rgba(239,68,68,0.1)'  : 'rgba(15,118,110,0.1)',
+      iconBorder: isRed ? 'rgba(239,68,68,0.2)'  : 'rgba(15,118,110,0.2)',
+      redBorder:  isRed,
+      metrics: [
+        {
+          label: 'Mood', val: `${d.avgMood}`, suffix: '/10',
+          valColor: goodColor(Math.round((d.avgMood / 10) * 100)),
+          pct: Math.round((d.avgMood / 10) * 100),
+          barColor: goodColor(Math.round((d.avgMood / 10) * 100)),
+        },
+        {
+          label: 'Stress', val: `${d.avgStress}`, suffix: '%',
+          valColor: badColor(d.avgStress), pct: d.avgStress, barColor: badColor(d.avgStress),
+        },
+        {
+          label: 'Check-in', val: `${d.checkedInToday}`, suffix: `/${d.memberCount}`,
+          valColor: C.text,
+          pct: d.memberCount > 0 ? Math.round((d.checkedInToday / d.memberCount) * 100) : 0,
+          barColor: C.teal,
+        },
+        {
+          label: 'Energy', val: `${d.avgEnergy}`, suffix: '/10',
+          valColor: goodColor(Math.round((d.avgEnergy / 10) * 100)),
+          pct: Math.round((d.avgEnergy / 10) * 100),
+          barColor: goodColor(Math.round((d.avgEnergy / 10) * 100)),
+        },
+      ],
+    };
+  });
+
+  const emotionChips: EmotionChip[] = topEmotions.map((e, i) => ({
+    label: `${emojiFor(e.emotion)} ${e.emotion} · ${e.pct}%`,
+    ...CHIP_PALETTES[i % CHIP_PALETTES.length],
+  }));
+
+  const heatmapDays: HeatDay[] = stressHeatmap.map((d) => ({
+    day: d.day, bg: heatBg(d.intensity),
+  }));
+
+  return { alertMessage, headlineStats, pulse, productivity, moods, depts, emotionChips, heatmapDays };
+};
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function HomeScreen() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [data, setData] = useState<DashboardData | null>(null);
+  const { data: raw, isLoading, isError, refetch, error } = useOrgDashboard();
+  console.log(error)
 
-  useEffect(() => {
-    let mounted = true;
-
-    const fetchDashboard = async () => {
-      setIsLoading(true);
-      try {
-        // Replace with real API call, e.g.:
-        // const res = await api.get('/dashboard');
-        // if (mounted) setData(res.data);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        if (mounted) setData(MOCK_DATA);
-      } catch (err) {
-        if (mounted) setData(null);
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
-    };
-
-    fetchDashboard();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const isEmpty = !isLoading && (!data || data.headlineStats.every((s) => s.val === '0'));
+  const isEmpty = !isLoading && !isError && (!raw || raw.departments.length === 0);
+  const built   = raw ? buildDashboardProps(raw) : null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -163,7 +227,6 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Status row */}
         <View style={styles.statusBar}>
           <Text style={styles.statusText}>9:41</Text>
           <Text style={styles.statusText}>●●●</Text>
@@ -171,36 +234,47 @@ export default function HomeScreen() {
 
         {isLoading && <DashboardSkeleton />}
 
-        {!isLoading && isEmpty && <EmptyState />}
+        {isError && !isLoading && (
+          <View style={styles.errorWrap}>
+            <Text style={styles.errorText}>Could not load dashboard</Text>
+            <Text style={styles.errorRetry} onPress={() => refetch()}>Tap to retry</Text>
+          </View>
+        )}
 
-        {!isLoading && !isEmpty && data && (
+        {isEmpty && <EmptyState />}
+
+        {!isLoading && !isError && !isEmpty && built && (
           <>
-            <Header data={data.header} />
-            <Alert message={data.alertMessage} />
+            <Header data={{
+              departmentCount: raw!.departmentCount,
+              employeeCount:   raw!.totalEmployees,
+            }} />
+
+            <Alert message={built.alertMessage} />
 
             <SectionLabel label="OVERVIEW" />
-            <HeadlineStats stats={data.headlineStats} />
+            <HeadlineStats stats={built.headlineStats} />
 
             <SectionLabel label="TEAM PULSE" />
-            <PulseCard data={data.pulse} />
+            <PulseCard data={built.pulse} />
 
             <SectionLabel label="PRODUCTIVITY METRICS" />
-            <ProductivityMetrics metrics={data.productivity} />
+            <ProductivityMetrics metrics={built.productivity} />
 
             <SectionLabel label="MOOD DISTRIBUTION" />
-            <MoodDistribution moods={data.moods} />
+            <MoodDistribution moods={built.moods} />
 
             <SectionLabel label="DEPARTMENTS" />
-            <Departments depts={data.departments} />
+            <Departments depts={built.depts} />
 
             <SectionLabel label="TOP EMOTIONS THIS WEEK" />
-            <EmotionChips chips={data.emotionChips} />
+            <EmotionChips chips={built.emotionChips} />
 
             <SectionLabel label="STRESS HEATMAP · BY DAY" />
-            <StressHeatmap days={data.heatmapDays} />
+            <StressHeatmap days={built.heatmapDays} />
 
             <SectionLabel label="QUICK ACTIONS" />
-            <QuickActions actions={data.quickActions} />
+            <QuickActions actions={QUICK_ACTIONS} />
 
             <View style={{ height: 40 }} />
           </>
@@ -211,26 +285,17 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: C.bg,
-  },
-  scroll: {
-    flex: 1,
-    backgroundColor: C.bg,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
+  safeArea:      { flex: 1, backgroundColor: C.bg },
+  scroll:        { flex: 1, backgroundColor: C.bg },
+  scrollContent: { paddingBottom: 20 },
   statusBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 14,
-    paddingBottom: 0,
   },
-  statusText: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.3)',
-  },
+  statusText:  { fontSize: 11, color: 'rgba(255,255,255,0.3)' },
+  errorWrap:   { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 10 },
+  errorText:   { fontSize: 14, color: C.muted },
+  errorRetry:  { fontSize: 13, color: C.teal, fontWeight: '700' },
 });
