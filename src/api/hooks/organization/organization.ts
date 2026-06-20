@@ -35,6 +35,7 @@ interface Employee {
   fullName: string;
   email: string;
   position: string;
+  clearanceLevel: number;
   createdAt: string;
 }
 
@@ -154,16 +155,14 @@ export const usePromoteEmployee = () => {
       });
       return data;
     },
-    onSuccess: (_, { employeeId, position }) => {
-      // Optimistic cache update — no refetch round-trip needed
-      queryClient.setQueryData<Employee[]>(ORG_KEYS.employees, (old) =>
-        old
-          ? old.map((e) => (e._id === employeeId ? { ...e, position } : e))
-          : old
-      );
+    onSuccess: () => {
+      // Revalidate from the server instead of patching the cache by hand —
+      // guarantees position AND clearanceLevel both reflect exactly what
+      // the backend computed (see pre("save") hook in user.model.js),
+      // same pattern useRespondToRequest already uses for this list.
+      queryClient.invalidateQueries({ queryKey: ORG_KEYS.employees });
     },
     onError: () => {
-      // Roll back to server truth on failure
       queryClient.invalidateQueries({ queryKey: ORG_KEYS.employees });
     },
   });
