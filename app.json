@@ -7,6 +7,15 @@
     "icon": "./assets/AbibekaIcon.jpeg",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/3f9ffaec-6bc7-43d5-ae08-bc6dbf6e76d9"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "splash": {
       "image": "./assets/AbibekaLogo.jpeg",
       "resizeMode": "contain",
