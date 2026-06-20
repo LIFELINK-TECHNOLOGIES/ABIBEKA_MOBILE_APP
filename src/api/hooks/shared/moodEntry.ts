@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../../clients";
 import { MoodEntry } from "../../endpoints/shared/moodEntry";
+import { useOfflineAwareQuery } from "../../offline/hooks/useOfflineAwareness";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 interface SubmitCheckInPayload {
@@ -31,10 +32,9 @@ interface SubmitCheckInResponse {
   success: boolean;
   message: string;
   data: MoodEntryDoc;
-  nextCheckIn: string; // ISO date string for the start of the next allowed day
+  nextCheckIn: string;
 }
 
-// A single day's mood point, used for moodTrend.daily / bestDay / worstDay
 interface MoodDayPoint {
   date: string;
   mood: number;
@@ -44,7 +44,6 @@ interface MoodDayPoint {
   score: number;
 }
 
-// The mode (most-logged) mood for the rolling week
 interface MostFrequentMood {
   mood: number;
   label: string | null;
@@ -54,9 +53,6 @@ interface MostFrequentMood {
   percentage: number;
 }
 
-// A single day's stress point. Used for stress.daily, and also for
-// peakDay/calmestDay — the backend pulls those straight out of the same
-// daily array, so they carry the same `classification` field.
 interface StressDayPoint {
   date: string;
   value: number;
@@ -67,7 +63,6 @@ interface DashboardData {
   totalCheckIns: number;
   streak: number;
   hasJoinedOrganization: boolean;
-  // Rolling last-7-days mood trend
   moodTrend: {
     avg: number;
     bestDay: MoodDayPoint | null;
@@ -75,15 +70,13 @@ interface DashboardData {
     mostFrequentMood: MostFrequentMood | null;
     daily: MoodDayPoint[];
   };
-  // Rolling last-7-days stress level
   stress: {
     avg: number;
-    percentage: number; // 0-10 scale normalized to 0-100
+    percentage: number;
     peakDay: StressDayPoint | null;
     calmestDay: StressDayPoint | null;
     daily: StressDayPoint[];
   };
-  // Rolling last-7-days emotion breakdown
   emotionBreakdown: {
     calmLevel: number;
     happyLevel: number;
@@ -91,7 +84,6 @@ interface DashboardData {
     anxietyLevel: number;
     emotionCounts: Record<string, number>;
   };
-  // Contribution grid — spans the requested `range`, not the rolling week
   grid: { date: string; value: number }[];
   latestEntry: {
     mood: number;
@@ -113,35 +105,42 @@ interface TodayEntryResponse {
   success: boolean;
   data: MoodEntryDoc | null;
   checkedInToday: boolean;
-  nextCheckIn: string | null; // ISO date string; null until the user has checked in today
+  nextCheckIn: string | null;
 }
 
 // ─── Query keys ───────────────────────────────────────────────────────────
 export const MOOD_DASHBOARD_KEY = ["moodDashboard"];
-export const MOOD_TODAY_KEY = ["moodToday"];
+export const MOOD_TODAY_KEY     = ["moodToday"];
 
-// ─── Submit check-in ────────────────────────────────────────────────────────
+// ─── Submit check-in ──────────────────────────────────────────────────────
 export const useSubmitCheckIn = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (payload: SubmitCheckInPayload) => {
-      const { data } = await api.post<SubmitCheckInResponse>(MoodEntry.POST_DATA, payload);
+      const { data } = await api.post<SubmitCheckInResponse>(
+        MoodEntry.POST_DATA,
+        payload
+      );
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      // Seed today's entry directly into cache — no round-trip needed
+      queryClient.setQueryData<TodayEntryResponse>(MOOD_TODAY_KEY, {
+        success: true,
+        data: response.data,
+        checkedInToday: true,
+        nextCheckIn: response.nextCheckIn,
+      });
+      // Dashboard needs a full refetch — aggregates changed
       queryClient.invalidateQueries({ queryKey: MOOD_DASHBOARD_KEY });
-      queryClient.invalidateQueries({ queryKey: MOOD_TODAY_KEY });
     },
   });
 };
 
-// ─── Get dashboard data ─────────────────────────────────────────────────────
-// `range` still controls the totalCheckIns/streak/grid window (default 30 days).
-// moodTrend, stress, and emotionBreakdown are always the rolling last 7 days,
-// independent of `range`.
-export const useMoodDashboard = (range: number = 30) => {
-  return useQuery({
+// ─── Mood dashboard ───────────────────────────────────────────────────────
+export const useMoodDashboard = (range = 30) => {
+  return useOfflineAwareQuery<DashboardResponse>({
     queryKey: [...MOOD_DASHBOARD_KEY, range],
     queryFn: async () => {
       const { data } = await api.get<DashboardResponse>(
@@ -149,21 +148,24 @@ export const useMoodDashboard = (range: number = 30) => {
       );
       return data;
     },
+    cacheKey: `mood:dashboard:${range}`,
+    // Dashboard data is heavier — 5 min stale window
+    staleTime: 1000 * 60 * 5,
   });
 };
 
-// ─── Get today's entry (check if user already checked in) ──────────────────
-// staleTime: 0 + refetchOnMount: 'always' ensures this re-verifies with the
-// server every time the check-in screen mounts — including after logout/login
-// or switching accounts on the same device — instead of trusting a stale cache.
+// ─── Today's check-in status ──────────────────────────────────────────────
+// Never served from cache alone — always re-verifies with server on mount.
+// But still seeds AsyncStorage so the gate screen isn't blank on cold start.
 export const useTodayMoodEntry = () => {
-  return useQuery({
+  return useOfflineAwareQuery<TodayEntryResponse>({
     queryKey: MOOD_TODAY_KEY,
     queryFn: async () => {
       const { data } = await api.get<TodayEntryResponse>(MoodEntry.TODAY_DATA);
       return data;
     },
-    staleTime: 0,
+    cacheKey: "mood:today",
+    staleTime: 0,           // always stale — re-verify on every mount
     refetchOnMount: "always",
   });
 };

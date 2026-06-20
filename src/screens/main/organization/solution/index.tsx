@@ -10,7 +10,15 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
 } from 'react-native';
+import {
+  useSolutions,
+  useCreateSolution,
+  useVoteSolution,
+  usePinSolution,
+  useDeleteSolution,
+} from '../../../../api/hooks/organization/useSolution';
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 const C = {
@@ -33,16 +41,12 @@ const C = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type IssueTag =
-  | 'burnout'
-  | 'communication'
-  | 'workload'
-  | 'culture'
-  | 'process'
-  | 'wellbeing'
-  | 'retention';
+  | 'burnout' | 'communication' | 'workload'
+  | 'culture' | 'process' | 'wellbeing' | 'retention';
 
 type ProposalStatus = 'open' | 'in-progress' | 'adopted' | 'closed';
 
+// Local reply type (not yet backed by API)
 type Reply = {
   id: string;
   author: string;
@@ -56,6 +60,7 @@ type Reply = {
   postedAt: string;
 };
 
+// Merged local + API proposal shape
 type Proposal = {
   id: string;
   title: string;
@@ -77,130 +82,95 @@ type Proposal = {
 
 // ─── Tag config ───────────────────────────────────────────────────────────────
 const TAG_CONFIG: Record<IssueTag, { label: string; color: string; bg: string; border: string }> = {
-  burnout:       { label: '🔥 Burnout',       color: '#F87171', bg: 'rgba(239,68,68,0.1)',    border: 'rgba(239,68,68,0.22)' },
-  communication: { label: '💬 Communication', color: '#60A5FA', bg: 'rgba(59,130,246,0.1)',   border: 'rgba(59,130,246,0.22)' },
-  workload:      { label: '⚖️ Workload',      color: '#FBBF24', bg: 'rgba(251,191,36,0.1)',   border: 'rgba(251,191,36,0.22)' },
-  culture:       { label: '🌱 Culture',       color: C.tealLight, bg: 'rgba(15,118,110,0.1)', border: 'rgba(15,118,110,0.22)' },
-  process:       { label: '⚙️ Process',       color: '#A78BFA', bg: 'rgba(139,92,246,0.1)',   border: 'rgba(139,92,246,0.22)' },
-  wellbeing:     { label: '💚 Wellbeing',     color: C.green,   bg: 'rgba(34,197,94,0.1)',    border: 'rgba(34,197,94,0.22)' },
-  retention:     { label: '🧲 Retention',     color: '#FB923C', bg: 'rgba(251,146,60,0.1)',   border: 'rgba(251,146,60,0.22)' },
+  burnout:       { label: '🔥 Burnout',       color: '#F87171',   bg: 'rgba(239,68,68,0.1)',    border: 'rgba(239,68,68,0.22)'    },
+  communication: { label: '💬 Communication', color: '#60A5FA',   bg: 'rgba(59,130,246,0.1)',   border: 'rgba(59,130,246,0.22)'   },
+  workload:      { label: '⚖️ Workload',      color: '#FBBF24',   bg: 'rgba(251,191,36,0.1)',   border: 'rgba(251,191,36,0.22)'   },
+  culture:       { label: '🌱 Culture',       color: C.tealLight, bg: 'rgba(15,118,110,0.1)',   border: 'rgba(15,118,110,0.22)'   },
+  process:       { label: '⚙️ Process',       color: '#A78BFA',   bg: 'rgba(139,92,246,0.1)',   border: 'rgba(139,92,246,0.22)'   },
+  wellbeing:     { label: '💚 Wellbeing',     color: C.green,     bg: 'rgba(34,197,94,0.1)',    border: 'rgba(34,197,94,0.22)'    },
+  retention:     { label: '🧲 Retention',     color: '#FB923C',   bg: 'rgba(251,146,60,0.1)',   border: 'rgba(251,146,60,0.22)'   },
 };
 
 const STATUS_CONFIG: Record<ProposalStatus, { label: string; color: string; bg: string; border: string }> = {
-  open:        { label: '● Open',        color: C.tealLight, bg: 'rgba(15,118,110,0.12)',  border: 'rgba(15,118,110,0.28)' },
-  'in-progress': { label: '◑ In Progress', color: '#FBBF24',   bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.25)' },
-  adopted:     { label: '✓ Adopted',     color: C.green,     bg: 'rgba(34,197,94,0.1)',   border: 'rgba(34,197,94,0.25)' },
-  closed:      { label: '✕ Closed',      color: C.muted2,    bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)' },
+  open:          { label: '● Open',        color: C.tealLight, bg: 'rgba(15,118,110,0.12)',  border: 'rgba(15,118,110,0.28)'  },
+  'in-progress': { label: '◑ In Progress', color: '#FBBF24',   bg: 'rgba(251,191,36,0.1)',   border: 'rgba(251,191,36,0.25)'  },
+  adopted:       { label: '✓ Adopted',     color: C.green,     bg: 'rgba(34,197,94,0.1)',    border: 'rgba(34,197,94,0.25)'   },
+  closed:        { label: '✕ Closed',      color: C.muted2,    bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)'  },
 };
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-const INITIAL_PROPOSALS: Proposal[] = [
-  {
-    id: '1',
-    title: 'Introduce no-meeting Wednesdays for Engineering',
-    body: 'Engineering stress has been up 31% this week. One proven lever is protected focus time. I propose we block all of Wednesday from recurring meetings so engineers get a full day of deep work each week.',
-    author: 'Kofi Mensah', initials: 'KM', avatarBg: 'rgba(15,118,110,0.2)', authorColor: C.tealLight,
-    orgRole: 'Manager', department: 'Design',
-    tags: ['burnout', 'workload', 'process'],
-    status: 'in-progress',
-    upvotes: 24, upvoted: false,
-    pinned: true,
-    postedAt: '2h ago',
-    replies: [
-      {
-        id: 'r1', author: 'Amara Osei', initials: 'AO', avatarBg: 'rgba(239,68,68,0.18)', authorColor: '#F87171',
-        orgRole: null, body: 'Strongly support this. Last Wednesday I had 6 meetings and shipped nothing. A focused day would be a game-changer for the team.', upvotes: 11, upvoted: false, postedAt: '1h ago',
-      },
-      {
-        id: 'r2', author: 'Daniel Nwosu', initials: 'DN', avatarBg: 'rgba(139,92,246,0.18)', authorColor: '#A78BFA',
-        orgRole: 'Admin', body: 'HR data backs this up — teams with protected deep work days report 28% lower burnout scores. I can pull the numbers if helpful.', upvotes: 8, upvoted: false, postedAt: '45m ago',
-      },
-    ],
-  },
-  {
-    id: '2',
-    title: 'Monthly anonymous pulse reviews shared org-wide',
-    body: 'Right now pulse data is only visible to admins. Making anonymised summaries visible to the whole org creates accountability and trust. People feel heard when they see results acted on.',
-    author: 'Zara Williams', initials: 'ZW', avatarBg: 'rgba(245,158,11,0.18)', authorColor: '#FCD34D',
-    orgRole: null, department: 'Sales',
-    tags: ['culture', 'communication', 'wellbeing'],
-    status: 'open',
-    upvotes: 17, upvoted: false,
-    postedAt: '5h ago',
-    replies: [
-      {
-        id: 'r3', author: 'Fatima Al-Rashid', initials: 'FA', avatarBg: 'rgba(251,191,36,0.15)', authorColor: '#FBBF24',
-        orgRole: 'CFO', body: 'From a leadership perspective, I think this is healthy. Transparency tends to improve morale more than any perk. Supportive.', upvotes: 6, upvoted: false, postedAt: '3h ago',
-      },
-    ],
-  },
-  {
-    id: '3',
-    title: 'Peer recognition channel — shout-outs that actually land',
-    body: 'Recognition from peers means more than top-down awards. A dedicated space for public shout-outs, tied to org values, would boost morale without adding manager overhead.',
-    author: 'Priya Sharma', initials: 'PS', avatarBg: 'rgba(239,68,68,0.15)', authorColor: '#F87171',
-    orgRole: null, department: 'Engineering',
-    tags: ['culture', 'retention', 'wellbeing'],
-    status: 'adopted',
-    upvotes: 38, upvoted: true,
-    postedAt: '1d ago',
-    replies: [
-      {
-        id: 'r4', author: 'Marcus Obi', initials: 'MO', avatarBg: 'rgba(245,158,11,0.15)', authorColor: '#FCD34D',
-        orgRole: null, body: 'Already seeing this used. Sales team has had 12 shout-outs this week alone. Retention risk is visibly down in our dept.', upvotes: 9, upvoted: false, postedAt: '18h ago',
-      },
-      {
-        id: 'r5', author: 'Chidi Eze', initials: 'CE', avatarBg: 'rgba(15,118,110,0.15)', authorColor: C.tealLight,
-        orgRole: null, body: 'Design team loves it. One small ask — can we pin the top shout-out of the week to the home screen?', upvotes: 4, upvoted: false, postedAt: '14h ago',
-      },
-    ],
-  },
-  {
-    id: '4',
-    title: 'Flexible start times for parents and caregivers',
-    body: 'Several teammates have flagged that rigid 9am starts are causing stress, especially parents doing school runs. A 7am–10am flexible start window with no penalty would reduce absenteeism and improve focus scores.',
-    author: 'Daniel Nwosu', initials: 'DN', avatarBg: 'rgba(139,92,246,0.18)', authorColor: '#A78BFA',
-    orgRole: 'Admin', department: 'HR',
-    tags: ['wellbeing', 'workload', 'retention'],
-    status: 'open',
-    upvotes: 29, upvoted: false,
-    postedAt: '2d ago',
-    replies: [],
-  },
+// ─── Avatar helpers ───────────────────────────────────────────────────────────
+const AVATAR_POOL = [
+  { bg: 'rgba(15,118,110,0.2)',  color: C.tealLight },
+  { bg: 'rgba(245,158,11,0.18)', color: '#FCD34D'   },
+  { bg: 'rgba(139,92,246,0.18)', color: '#A78BFA'   },
+  { bg: 'rgba(239,68,68,0.18)',  color: '#F87171'   },
+  { bg: 'rgba(251,146,60,0.15)', color: '#FB923C'   },
 ];
+const avatarFor = (label: string) =>
+  AVATAR_POOL[label.charCodeAt(0) % AVATAR_POOL.length];
+
+const initialsFor = (label: string) =>
+  label.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+
+// ─── Map API SolutionItem → local Proposal ────────────────────────────────────
+const mapApiToProposal = (item: any): Proposal => {
+  const av = avatarFor(item.authorLabel ?? 'Org');
+  return {
+    id:          item.id,
+    title:       item.title,
+    body:        item.body,
+    author:      item.authorLabel ?? 'Organisation',
+    initials:    initialsFor(item.authorLabel ?? 'ORG'),
+    avatarBg:    av.bg,
+    authorColor: av.color,
+    orgRole:     null,
+    department:  'Organisation',
+    tags:        (item.tags ?? []) as IssueTag[],
+    status:      (item.status === 'in_progress' ? 'in-progress' : item.status) as ProposalStatus,
+    upvotes:     item.upvotes   ?? 0,
+    upvoted:     item.userVote === 'up',
+    replies:     [],           // replies not yet in API
+    postedAt:    item.postedAt ?? '',
+    pinned:      item.pinned   ?? false,
+  };
+};
 
 // ─── Compose Modal ────────────────────────────────────────────────────────────
 function ComposeModal({
   visible,
   onClose,
   onSubmit,
+  isPosting,
 }: {
   visible: boolean;
   onClose: () => void;
   onSubmit: (title: string, body: string, tags: IssueTag[]) => void;
+  isPosting: boolean;
 }) {
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
+  const [title, setTitle]             = useState('');
+  const [body, setBody]               = useState('');
   const [selectedTags, setSelectedTags] = useState<IssueTag[]>([]);
 
-  const toggleTag = (tag: IssueTag) => {
-    setSelectedTags(prev =>
-      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+  const toggleTag = (tag: IssueTag) =>
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
-  };
 
-  const canSubmit = title.trim().length > 5 && body.trim().length > 10;
+  const canSubmit = title.trim().length > 5 && body.trim().length > 10 && !isPosting;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
     onSubmit(title.trim(), body.trim(), selectedTags);
     setTitle(''); setBody(''); setSelectedTags([]);
-    onClose();
   };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose} />
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={isPosting ? undefined : onClose}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.composeSheet}
@@ -217,6 +187,7 @@ function ComposeModal({
           value={title}
           onChangeText={setTitle}
           maxLength={100}
+          editable={!isPosting}
         />
 
         <Text style={[styles.composeLabel, { marginTop: 12 }]}>YOUR PROPOSAL</Text>
@@ -229,17 +200,19 @@ function ComposeModal({
           multiline
           numberOfLines={5}
           textAlignVertical="top"
+          editable={!isPosting}
         />
 
         <Text style={[styles.composeLabel, { marginTop: 12 }]}>TAG THE ISSUE</Text>
         <View style={styles.tagGrid}>
-          {(Object.keys(TAG_CONFIG) as IssueTag[]).map(tag => {
-            const cfg = TAG_CONFIG[tag];
+          {(Object.keys(TAG_CONFIG) as IssueTag[]).map((tag) => {
+            const cfg    = TAG_CONFIG[tag];
             const active = selectedTags.includes(tag);
             return (
               <TouchableOpacity
                 key={tag}
                 activeOpacity={0.7}
+                disabled={isPosting}
                 style={[
                   styles.tagChip,
                   { borderColor: active ? cfg.border : C.border },
@@ -259,9 +232,10 @@ function ComposeModal({
           activeOpacity={0.8}
           style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
           onPress={handleSubmit}
+          disabled={!canSubmit}
         >
           <Text style={[styles.submitBtnText, !canSubmit && { color: C.muted }]}>
-            Post proposal
+            {isPosting ? 'Posting…' : 'Post proposal'}
           </Text>
         </TouchableOpacity>
         <View style={{ height: 20 }} />
@@ -310,8 +284,8 @@ function ThreadModal({
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
               <View style={styles.statusChangeRow}>
                 {(Object.keys(STATUS_CONFIG) as ProposalStatus[])
-                  .filter(s => s !== proposal.status)
-                  .map(s => {
+                  .filter((s) => s !== proposal.status)
+                  .map((s) => {
                     const sc = STATUS_CONFIG[s];
                     return (
                       <TouchableOpacity
@@ -331,7 +305,9 @@ function ThreadModal({
           <Text style={styles.threadTitle}>{proposal.title}</Text>
           <View style={styles.threadAuthorRow}>
             <View style={[styles.miniAvatar, { backgroundColor: proposal.avatarBg }]}>
-              <Text style={[styles.miniAvatarText, { color: proposal.authorColor }]}>{proposal.initials}</Text>
+              <Text style={[styles.miniAvatarText, { color: proposal.authorColor }]}>
+                {proposal.initials}
+              </Text>
             </View>
             <Text style={styles.threadAuthor}>{proposal.author}</Text>
             {proposal.orgRole && (
@@ -346,7 +322,7 @@ function ThreadModal({
 
           {/* Tags */}
           <View style={styles.threadTags}>
-            {proposal.tags.map(tag => {
+            {proposal.tags.map((tag) => {
               const cfg = TAG_CONFIG[tag];
               return (
                 <View key={tag} style={[styles.tagChip, { backgroundColor: cfg.bg, borderColor: cfg.border }]}>
@@ -373,11 +349,13 @@ function ThreadModal({
             {proposal.replies.length} {proposal.replies.length === 1 ? 'reply' : 'replies'}
           </Text>
 
-          {proposal.replies.map(reply => (
+          {proposal.replies.map((reply) => (
             <View key={reply.id} style={styles.replyCard}>
               <View style={styles.replyTop}>
                 <View style={[styles.miniAvatar, { backgroundColor: reply.avatarBg }]}>
-                  <Text style={[styles.miniAvatarText, { color: reply.authorColor }]}>{reply.initials}</Text>
+                  <Text style={[styles.miniAvatarText, { color: reply.authorColor }]}>
+                    {reply.initials}
+                  </Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={styles.replyAuthorRow}>
@@ -448,17 +426,17 @@ function ProposalCard({
 
   return (
     <TouchableOpacity activeOpacity={0.82} style={styles.card} onPress={onPress}>
-      {/* Pinned banner */}
       {proposal.pinned && (
         <View style={styles.pinnedBar}>
           <Text style={styles.pinnedText}>📌 Pinned by leadership</Text>
         </View>
       )}
 
-      {/* Author row */}
       <View style={styles.cardAuthorRow}>
         <View style={[styles.miniAvatar, { backgroundColor: proposal.avatarBg }]}>
-          <Text style={[styles.miniAvatarText, { color: proposal.authorColor }]}>{proposal.initials}</Text>
+          <Text style={[styles.miniAvatarText, { color: proposal.authorColor }]}>
+            {proposal.initials}
+          </Text>
         </View>
         <Text style={styles.cardAuthor}>{proposal.author}</Text>
         {proposal.orgRole && (
@@ -473,15 +451,11 @@ function ProposalCard({
         </View>
       </View>
 
-      {/* Title */}
       <Text style={styles.cardTitle}>{proposal.title}</Text>
-
-      {/* Body preview */}
       <Text style={styles.cardBodyPreview} numberOfLines={2}>{proposal.body}</Text>
 
-      {/* Tags */}
       <View style={styles.cardTags}>
-        {proposal.tags.slice(0, 3).map(tag => {
+        {proposal.tags.slice(0, 3).map((tag) => {
           const cfg = TAG_CONFIG[tag];
           return (
             <View key={tag} style={[styles.tagChip, { backgroundColor: cfg.bg, borderColor: cfg.border }]}>
@@ -491,11 +465,10 @@ function ProposalCard({
         })}
       </View>
 
-      {/* Footer */}
       <View style={styles.cardFooter}>
         <TouchableOpacity
           style={[styles.upvoteBtn, proposal.upvoted && styles.upvoteBtnActive]}
-          onPress={e => { e.stopPropagation?.(); onUpvote(proposal.id); }}
+          onPress={(e) => { e.stopPropagation?.(); onUpvote(proposal.id); }}
         >
           <Text style={[styles.upvoteIcon, proposal.upvoted && { color: C.tealLight }]}>▲</Text>
           <Text style={[styles.upvoteCount, proposal.upvoted && { color: C.tealLight }]}>
@@ -511,33 +484,92 @@ function ProposalCard({
   );
 }
 
-// ─── Main screen ──────────────────────────────────────────────────────────────
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function SolutionsForumScreen() {
-  const [proposals, setProposals] = useState<Proposal[]>(INITIAL_PROPOSALS);
-  const [search, setSearch] = useState('');
-  const [activeTag, setActiveTag] = useState<IssueTag | 'all'>('all');
+  const [localReplies, setLocalReplies] = useState<Record<string, Reply[]>>({});
+  const [localStatuses, setLocalStatuses] = useState<Record<string, ProposalStatus>>({});
+  const [localUpvotes, setLocalUpvotes] = useState<Record<string, { count: number; voted: boolean }>>({});
+  const [search, setSearch]           = useState('');
+  const [activeTag, setActiveTag]     = useState<IssueTag | 'all'>('all');
   const [activeStatus, setActiveStatus] = useState<ProposalStatus | 'all'>('all');
   const [composeVisible, setComposeVisible] = useState(false);
   const [threadProposalId, setThreadProposalId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'top' | 'new'>('top');
+  const [sortBy, setSortBy]           = useState<'top' | 'new'>('top');
 
-  const threadProposal = proposals.find(p => p.id === threadProposalId) || null;
+  // ── API hooks ──────────────────────────────────────────────────────────────
+  const {
+    data: apiItems = [],
+    isLoading,
+    isError,
+    refreshing,
+    onRefresh,
+    isOffline,
+    isShowingStale,
+  } = useSolutions();
 
+  const { mutate: createSolution, isPending: isPosting } = useCreateSolution();
+  const { mutate: voteSolution  } = useVoteSolution();
+  const { mutate: pinSolution   } = usePinSolution();
+
+  // ── Merge API data with local overrides ────────────────────────────────────
+  const proposals: Proposal[] = apiItems.map((item) => {
+    const base      = mapApiToProposal(item);
+    const upvote    = localUpvotes[item.id];
+    const status    = localStatuses[item.id];
+    const replies   = localReplies[item.id];
+    return {
+      ...base,
+      upvotes:  upvote  ? upvote.count  : base.upvotes,
+      upvoted:  upvote  ? upvote.voted  : base.upvoted,
+      status:   status  ?? base.status,
+      replies:  replies ?? base.replies,
+    };
+  });
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleUpvoteProposal = (id: string) => {
-    setProposals(prev => prev.map(p =>
-      p.id === id ? { ...p, upvotes: p.upvoted ? p.upvotes - 1 : p.upvotes + 1, upvoted: !p.upvoted } : p
-    ));
+    const current   = proposals.find((p) => p.id === id);
+    if (!current) return;
+    const wasVoted  = current.upvoted;
+
+    // Optimistic local state
+    setLocalUpvotes((prev) => ({
+      ...prev,
+      [id]: {
+        count: wasVoted ? current.upvotes - 1 : current.upvotes + 1,
+        voted: !wasVoted,
+      },
+    }));
+
+    // Fire API
+    voteSolution(
+      { id, type: 'up' },
+      {
+        onError: () => {
+          // Roll back
+          setLocalUpvotes((prev) => ({
+            ...prev,
+            [id]: { count: current.upvotes, voted: wasVoted },
+          }));
+        },
+      }
+    );
   };
 
   const handleUpvoteReply = (proposalId: string, replyId: string) => {
-    setProposals(prev => prev.map(p =>
-      p.id !== proposalId ? p : {
-        ...p,
-        replies: p.replies.map(r =>
-          r.id !== replyId ? r : { ...r, upvotes: r.upvoted ? r.upvotes - 1 : r.upvotes + 1, upvoted: !r.upvoted }
+    setLocalReplies((prev) => {
+      const current = prev[proposalId] ?? proposals.find((p) => p.id === proposalId)?.replies ?? [];
+      return {
+        ...prev,
+        [proposalId]: current.map((r) =>
+          r.id !== replyId ? r : {
+            ...r,
+            upvotes: r.upvoted ? r.upvotes - 1 : r.upvotes + 1,
+            upvoted: !r.upvoted,
+          }
         ),
-      }
-    ));
+      };
+    });
   };
 
   const handlePostReply = (proposalId: string, body: string) => {
@@ -546,36 +578,32 @@ export default function SolutionsForumScreen() {
       avatarBg: 'rgba(15,118,110,0.2)', authorColor: C.tealLight,
       orgRole: null, body, upvotes: 0, upvoted: false, postedAt: 'just now',
     };
-    setProposals(prev => prev.map(p =>
-      p.id === proposalId ? { ...p, replies: [...p.replies, newReply] } : p
-    ));
+    setLocalReplies((prev) => {
+      const current = prev[proposalId] ?? proposals.find((p) => p.id === proposalId)?.replies ?? [];
+      return { ...prev, [proposalId]: [...current, newReply] };
+    });
   };
 
   const handleChangeStatus = (proposalId: string, status: ProposalStatus) => {
-    setProposals(prev => prev.map(p =>
-      p.id === proposalId ? { ...p, status } : p
-    ));
+    setLocalStatuses((prev) => ({ ...prev, [proposalId]: status }));
   };
 
   const handleNewProposal = (title: string, body: string, tags: IssueTag[]) => {
-    const newP: Proposal = {
-      id: `p-${Date.now()}`, title, body,
-      author: 'You', initials: 'YO',
-      avatarBg: 'rgba(15,118,110,0.2)', authorColor: C.tealLight,
-      orgRole: null, department: 'Your dept',
-      tags, status: 'open',
-      upvotes: 0, upvoted: false,
-      replies: [], postedAt: 'just now',
-    };
-    setProposals(prev => [newP, ...prev]);
+    // Map UI tag names → backend accepted status value
+    const statusValue = 'open'; // API uses "open" | "in_progress" | "resolved"
+    createSolution(
+      { title, body, tags, status: statusValue },
+      { onSuccess: () => setComposeVisible(false) }
+    );
   };
 
-  let filtered = proposals.filter(p => {
+  // ── Filtering + sorting ───────────────────────────────────────────────────
+  let filtered = proposals.filter((p) => {
     const matchSearch =
       search.trim() === '' ||
       p.title.toLowerCase().includes(search.toLowerCase()) ||
       p.body.toLowerCase().includes(search.toLowerCase());
-    const matchTag = activeTag === 'all' || p.tags.includes(activeTag);
+    const matchTag    = activeTag    === 'all' || p.tags.includes(activeTag);
     const matchStatus = activeStatus === 'all' || p.status === activeStatus;
     return matchSearch && matchTag && matchStatus;
   });
@@ -583,17 +611,34 @@ export default function SolutionsForumScreen() {
   if (sortBy === 'top') {
     filtered = [...filtered].sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
+      if (!a.pinned && b.pinned) return  1;
       return b.upvotes - a.upvotes;
     });
   }
 
-  const totalOpen = proposals.filter(p => p.status === 'open' || p.status === 'in-progress').length;
+  const threadProposal = proposals.find((p) => p.id === threadProposalId) ?? null;
+  const totalOpen      = proposals.filter((p) => p.status === 'open' || p.status === 'in-progress').length;
 
   return (
     <SafeAreaView style={styles.safeArea}>
 
-      {/* Header */}
+      {/* ── Offline banner ──────────────────────────────────────────────── */}
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>
+            📡 You're offline — showing cached proposals
+          </Text>
+        </View>
+      )}
+
+      {/* ── Stale / refreshing banner ───────────────────────────────────── */}
+      {!isOffline && isShowingStale && (
+        <View style={styles.staleBanner}>
+          <Text style={styles.staleBannerText}>⟳ Refreshing…</Text>
+        </View>
+      )}
+
+      {/* ── Header ──────────────────────────────────────────────────────── */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Solutions Board</Text>
@@ -608,13 +653,13 @@ export default function SolutionsForumScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Stats strip */}
+      {/* ── Stats strip ─────────────────────────────────────────────────── */}
       <View style={styles.statsStrip}>
         {([
-          { label: 'Proposed', val: proposals.length, color: C.tealLight },
-          { label: 'In Progress', val: proposals.filter(p => p.status === 'in-progress').length, color: '#FBBF24' },
-          { label: 'Adopted', val: proposals.filter(p => p.status === 'adopted').length, color: C.green },
-          { label: 'Replies', val: proposals.reduce((a, p) => a + p.replies.length, 0), color: '#60A5FA' },
+          { label: 'Proposed',    val: proposals.length,                                              color: C.tealLight },
+          { label: 'In Progress', val: proposals.filter((p) => p.status === 'in-progress').length,   color: '#FBBF24'   },
+          { label: 'Adopted',     val: proposals.filter((p) => p.status === 'adopted').length,       color: C.green     },
+          { label: 'Replies',     val: proposals.reduce((a, p) => a + p.replies.length, 0),          color: '#60A5FA'   },
         ] as { label: string; val: number; color: string }[]).map((s, i) => (
           <View key={i} style={styles.statItem}>
             <Text style={[styles.statVal, { color: s.color }]}>{s.val}</Text>
@@ -623,7 +668,7 @@ export default function SolutionsForumScreen() {
         ))}
       </View>
 
-      {/* Search + sort */}
+      {/* ── Search + sort ───────────────────────────────────────────────── */}
       <View style={styles.searchRow}>
         <View style={styles.searchWrapper}>
           <Text style={{ fontSize: 12 }}>🔍</Text>
@@ -634,9 +679,14 @@ export default function SolutionsForumScreen() {
             value={search}
             onChangeText={setSearch}
           />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
+              <Text style={{ fontSize: 12, color: C.muted }}>✕</Text>
+            </TouchableOpacity>
+          )}
         </View>
         <View style={styles.sortToggle}>
-          {(['top', 'new'] as const).map(s => (
+          {(['top', 'new'] as const).map((s) => (
             <TouchableOpacity
               key={s}
               style={[styles.sortBtn, sortBy === s && styles.sortBtnActive]}
@@ -650,7 +700,7 @@ export default function SolutionsForumScreen() {
         </View>
       </View>
 
-      {/* Tag filter */}
+      {/* ── Tag filter ──────────────────────────────────────────────────── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -661,10 +711,12 @@ export default function SolutionsForumScreen() {
           style={[styles.tagFilterChip, activeTag === 'all' && styles.tagFilterChipActive]}
           onPress={() => setActiveTag('all')}
         >
-          <Text style={[styles.tagFilterText, activeTag === 'all' && { color: C.tealLight }]}>All topics</Text>
+          <Text style={[styles.tagFilterText, activeTag === 'all' && { color: C.tealLight }]}>
+            All topics
+          </Text>
         </TouchableOpacity>
-        {(Object.keys(TAG_CONFIG) as IssueTag[]).map(tag => {
-          const cfg = TAG_CONFIG[tag];
+        {(Object.keys(TAG_CONFIG) as IssueTag[]).map((tag) => {
+          const cfg      = TAG_CONFIG[tag];
           const isActive = activeTag === tag;
           return (
             <TouchableOpacity
@@ -684,7 +736,7 @@ export default function SolutionsForumScreen() {
         })}
       </ScrollView>
 
-      {/* Status filter */}
+      {/* ── Status filter ───────────────────────────────────────────────── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -695,10 +747,12 @@ export default function SolutionsForumScreen() {
           style={[styles.tagFilterChip, activeStatus === 'all' && styles.tagFilterChipActive]}
           onPress={() => setActiveStatus('all')}
         >
-          <Text style={[styles.tagFilterText, activeStatus === 'all' && { color: C.tealLight }]}>All statuses</Text>
+          <Text style={[styles.tagFilterText, activeStatus === 'all' && { color: C.tealLight }]}>
+            All statuses
+          </Text>
         </TouchableOpacity>
-        {(Object.keys(STATUS_CONFIG) as ProposalStatus[]).map(s => {
-          const sc = STATUS_CONFIG[s];
+        {(Object.keys(STATUS_CONFIG) as ProposalStatus[]).map((s) => {
+          const sc       = STATUS_CONFIG[s];
           const isActive = activeStatus === s;
           return (
             <TouchableOpacity
@@ -718,39 +772,71 @@ export default function SolutionsForumScreen() {
         })}
       </ScrollView>
 
-      {/* List */}
+      {/* ── List — pull-to-refresh lives here ───────────────────────────── */}
       <ScrollView
         style={styles.list}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={C.tealLight}
+            colors={[C.tealLight]}
+            progressBackgroundColor={C.surface}
+          />
+        }
       >
-        {filtered.length === 0 ? (
+        {/* First-load with no cache */}
+        {isLoading && proposals.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={{ color: C.muted, fontSize: 13 }}>Loading proposals…</Text>
+          </View>
+        )}
+
+        {/* Error with no cache */}
+        {isError && proposals.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={{ fontSize: 28, marginBottom: 8 }}>⚠️</Text>
+            <Text style={styles.emptyTitle}>Could not load proposals</Text>
+            <Text style={styles.emptySub}>Pull down to retry</Text>
+          </View>
+        )}
+
+        {/* Empty after successful fetch */}
+        {!isLoading && !isError && filtered.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={{ fontSize: 32 }}>📭</Text>
-            <Text style={styles.emptyTitle}>No proposals found</Text>
-            <Text style={styles.emptySub}>Be the first to propose a solution</Text>
+            <Text style={styles.emptyTitle}>
+              {search.trim() ? 'No proposals match your search' : 'No proposals yet'}
+            </Text>
+            <Text style={styles.emptySub}>
+              {search.trim() ? 'Try different keywords or filters' : 'Be the first to propose a solution'}
+            </Text>
           </View>
-        ) : (
-          filtered.map(p => (
-            <ProposalCard
-              key={p.id}
-              proposal={p}
-              onPress={() => setThreadProposalId(p.id)}
-              onUpvote={handleUpvoteProposal}
-            />
-          ))
         )}
+
+        {filtered.map((p) => (
+          <ProposalCard
+            key={p.id}
+            proposal={p}
+            onPress={() => setThreadProposalId(p.id)}
+            onUpvote={handleUpvoteProposal}
+          />
+        ))}
+
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Compose modal */}
+      {/* ── Compose modal ───────────────────────────────────────────────── */}
       <ComposeModal
         visible={composeVisible}
-        onClose={() => setComposeVisible(false)}
+        onClose={() => !isPosting && setComposeVisible(false)}
         onSubmit={handleNewProposal}
+        isPosting={isPosting}
       />
 
-      {/* Thread modal */}
+      {/* ── Thread modal ─────────────────────────────────────────────────── */}
       <ThreadModal
         proposal={threadProposal}
         visible={!!threadProposalId}
@@ -768,6 +854,26 @@ export default function SolutionsForumScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: C.bg },
 
+  // Banners
+  offlineBanner: {
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(239,68,68,0.2)',
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  offlineBannerText: { fontSize: 12, color: '#F87171', fontWeight: '600' },
+  staleBanner: {
+    backgroundColor: 'rgba(245,158,11,0.08)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(245,158,11,0.18)',
+    paddingVertical: 5,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  staleBannerText: { fontSize: 11, color: C.amber, fontWeight: '600' },
+
   // Header
   header: {
     flexDirection: 'row',
@@ -780,7 +886,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerTitle: { fontSize: 22, fontWeight: '900', color: C.text, letterSpacing: -0.6, marginBottom: 3 },
-  headerSub: { fontSize: 11, color: C.muted2 },
+  headerSub:   { fontSize: 11, color: C.muted2 },
   composeBtn: {
     backgroundColor: 'rgba(15,118,110,0.2)',
     borderWidth: 1,
@@ -799,8 +905,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.04)',
   },
-  statItem: { flex: 1, alignItems: 'center', gap: 2 },
-  statVal: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
+  statItem:  { flex: 1, alignItems: 'center', gap: 2 },
+  statVal:   { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
   statLabel: { fontSize: 9, fontWeight: '600', color: C.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   // Search
@@ -826,24 +932,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
-  sortBtn: { paddingHorizontal: 10, paddingVertical: 9 },
-  sortBtnActive: { backgroundColor: 'rgba(15,118,110,0.2)' },
-  sortBtnText: { fontSize: 11, fontWeight: '700', color: C.muted },
+  sortBtn:           { paddingHorizontal: 10, paddingVertical: 9 },
+  sortBtnActive:     { backgroundColor: 'rgba(15,118,110,0.2)' },
+  sortBtnText:       { fontSize: 11, fontWeight: '700', color: C.muted },
   sortBtnTextActive: { color: C.tealLight },
 
-  // Tag / status filter rows
-  tagFilterRow: {
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 2,
-    gap: 6,
-  },
-  statusFilterRow: {
-    paddingHorizontal: 14,
-    paddingTop: 6,
-    paddingBottom: 6,
-    gap: 6,
-  },
+  // Filter rows
+  tagFilterRow:    { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 2, gap: 6 },
+  statusFilterRow: { paddingHorizontal: 14, paddingTop: 6, paddingBottom: 6, gap: 6 },
   tagFilterChip: {
     paddingHorizontal: 11,
     paddingVertical: 6,
@@ -859,7 +955,7 @@ const styles = StyleSheet.create({
   tagFilterText: { fontSize: 11, fontWeight: '600', color: C.muted2 },
 
   // List
-  list: { flex: 1 },
+  list:        { flex: 1 },
   listContent: { paddingHorizontal: 14, paddingTop: 6 },
 
   // Card
@@ -882,24 +978,19 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginBottom: 12,
   },
-  pinnedText: { fontSize: 10, fontWeight: '700', color: '#FBBF24' },
-  cardAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  cardAuthor: { fontSize: 11, fontWeight: '700', color: C.text },
-  cardDept: { fontSize: 10, color: C.muted },
-  cardTitle: { fontSize: 14, fontWeight: '900', color: C.text, letterSpacing: -0.3, marginBottom: 6, lineHeight: 20 },
+  pinnedText:      { fontSize: 10, fontWeight: '700', color: '#FBBF24' },
+  cardAuthorRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  cardAuthor:      { fontSize: 11, fontWeight: '700', color: C.text },
+  cardDept:        { fontSize: 10, color: C.muted },
+  cardTitle:       { fontSize: 14, fontWeight: '900', color: C.text, letterSpacing: -0.3, marginBottom: 6, lineHeight: 20 },
   cardBodyPreview: { fontSize: 12, color: C.muted2, lineHeight: 18, marginBottom: 10 },
-  cardTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 12 },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardMeta: { flexDirection: 'row', gap: 10 },
-  cardMetaText: { fontSize: 11, color: C.muted },
+  cardTags:        { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 12 },
+  cardFooter:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardMeta:        { flexDirection: 'row', gap: 10 },
+  cardMetaText:    { fontSize: 11, color: C.muted },
 
-  // Status badge (used in cards + thread)
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
+  // Status badge
+  statusBadge:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
   statusBadgeText: { fontSize: 10, fontWeight: '700' },
 
   // Upvote
@@ -918,10 +1009,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15,118,110,0.14)',
     borderColor: 'rgba(15,118,110,0.3)',
   },
-  upvoteIcon: { fontSize: 10, color: C.muted },
+  upvoteIcon:  { fontSize: 10, color: C.muted },
   upvoteCount: { fontSize: 12, fontWeight: '700', color: C.muted2 },
 
-  // Tag chip (shared across compose + cards)
+  // Tag chip
   tagChip: {
     paddingHorizontal: 9,
     paddingVertical: 4,
@@ -932,14 +1023,10 @@ const styles = StyleSheet.create({
   },
   tagChipText: { fontSize: 10, fontWeight: '700' },
 
-  // Avatar shared
+  // Mini avatar
   miniAvatar: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    width: 26, height: 26, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   miniAvatarText: { fontSize: 9, fontWeight: '900' },
 
@@ -957,7 +1044,7 @@ const styles = StyleSheet.create({
   // Empty
   emptyState: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyTitle: { fontSize: 15, fontWeight: '700', color: C.text },
-  emptySub: { fontSize: 12, color: C.muted },
+  emptySub:   { fontSize: 12, color: C.muted },
 
   // Modal overlay
   modalOverlay: {
@@ -986,8 +1073,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 16,
   },
-  composeTitle: { fontSize: 18, fontWeight: '900', color: C.text, marginBottom: 4 },
-  composeSub: { fontSize: 11, color: C.muted2, marginBottom: 16 },
+  composeTitle:       { fontSize: 18, fontWeight: '900', color: C.text, marginBottom: 4 },
+  composeSub:         { fontSize: 11, color: C.muted2, marginBottom: 16 },
   composeLabel: {
     fontSize: 9, fontWeight: '700', color: C.muted,
     letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 6,
@@ -1002,8 +1089,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: C.text,
   },
-  composeTextArea: { height: 100, textAlignVertical: 'top' },
-  tagGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 16 },
+  composeTextArea:    { height: 100, textAlignVertical: 'top' },
+  tagGrid:            { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 16 },
   submitBtn: {
     backgroundColor: 'rgba(15,118,110,0.22)',
     borderWidth: 1,
@@ -1013,27 +1100,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
-  submitBtnDisabled: { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: C.border },
-  submitBtnText: { fontSize: 14, fontWeight: '800', color: C.tealLight },
+  submitBtnDisabled:  { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: C.border },
+  submitBtnText:      { fontSize: 14, fontWeight: '800', color: C.tealLight },
 
-  // Thread modal
-  threadStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  statusChangeRow: { flexDirection: 'row', gap: 6 },
+  // Thread
+  threadStatusRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  statusChangeRow:  { flexDirection: 'row', gap: 6 },
   statusChangeChip: {
     paddingHorizontal: 9, paddingVertical: 4,
     borderRadius: 8, borderWidth: 1,
     backgroundColor: 'rgba(255,255,255,0.03)',
   },
   statusChangeText: { fontSize: 10, fontWeight: '700' },
-  threadTitle: { fontSize: 17, fontWeight: '900', color: C.text, letterSpacing: -0.4, marginBottom: 8, lineHeight: 24 },
-  threadAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  threadAuthor: { fontSize: 11, fontWeight: '700', color: C.text },
-  threadDept: { fontSize: 10, color: C.muted },
-  threadTime: { fontSize: 10, color: C.muted, marginLeft: 'auto' },
-  threadBody: { fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 21, marginBottom: 12 },
-  threadTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 12 },
-  threadDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginVertical: 14 },
-  repliesLabel: { fontSize: 10, fontWeight: '700', color: C.muted, letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 10 },
+  threadTitle:      { fontSize: 17, fontWeight: '900', color: C.text, letterSpacing: -0.4, marginBottom: 8, lineHeight: 24 },
+  threadAuthorRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  threadAuthor:     { fontSize: 11, fontWeight: '700', color: C.text },
+  threadDept:       { fontSize: 10, color: C.muted },
+  threadTime:       { fontSize: 10, color: C.muted, marginLeft: 'auto' },
+  threadBody:       { fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 21, marginBottom: 12 },
+  threadTags:       { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 12 },
+  threadDivider:    { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginVertical: 14 },
+  repliesLabel: {
+    fontSize: 10, fontWeight: '700', color: C.muted,
+    letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 10,
+  },
 
   // Reply
   replyCard: {
@@ -1044,12 +1134,12 @@ const styles = StyleSheet.create({
     padding: 11,
     marginBottom: 8,
   },
-  replyTop: { flexDirection: 'row', gap: 9, marginBottom: 6 },
+  replyTop:       { flexDirection: 'row', gap: 9, marginBottom: 6 },
   replyAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  replyAuthor: { fontSize: 11, fontWeight: '700', color: C.text },
-  replyTime: { fontSize: 10, color: C.muted, marginLeft: 'auto' },
-  replyBody: { fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 18 },
-  replyUpvote: { alignSelf: 'flex-end', marginTop: 4 },
+  replyAuthor:    { fontSize: 11, fontWeight: '700', color: C.text },
+  replyTime:      { fontSize: 10, color: C.muted, marginLeft: 'auto' },
+  replyBody:      { fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 18 },
+  replyUpvote:    { alignSelf: 'flex-end', marginTop: 4 },
   replyUpvoteText: { fontSize: 11, fontWeight: '700', color: C.muted },
 
   // Reply input

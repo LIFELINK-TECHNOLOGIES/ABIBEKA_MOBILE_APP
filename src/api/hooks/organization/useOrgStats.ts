@@ -1,8 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
 import api from "../../clients";
 import { OrgDashboard } from "../../endpoints/organization/stats";
+import { useOfflineAwareQuery } from "../../offline/hooks/useOfflineAwareness";
 
-// ─── Raw backend response shape ───────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────
 interface RawDept {
   name: string;
   memberCount: number;
@@ -45,14 +45,12 @@ export interface OrgDashboardRaw {
   alertStressChange: number | null;
 }
 
-// ─── Query key ────────────────────────────────────────────────────────────────
+// ─── Query key ────────────────────────────────────────────────────────────
 export const ORG_DASHBOARD_KEY = ["orgDashboard"];
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-// Returns raw data from the backend — HomeScreen transforms it into
-// component-ready props (colors, labels) so the hook stays UI-free.
+// ─── Hook ─────────────────────────────────────────────────────────────────
 export const useOrgDashboard = () => {
-  return useQuery({
+  return useOfflineAwareQuery<OrgDashboardRaw>({
     queryKey: ORG_DASHBOARD_KEY,
     queryFn: async () => {
       const { data } = await api.get<{ success: boolean; data: OrgDashboardRaw }>(
@@ -60,6 +58,7 @@ export const useOrgDashboard = () => {
       );
       return data.data;
     },
-    staleTime: 5 * 60 * 1000,
+    cacheKey: "org:dashboard",
+    staleTime: 1000 * 60 * 5,
   });
 };

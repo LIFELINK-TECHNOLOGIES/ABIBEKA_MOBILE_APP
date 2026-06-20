@@ -1,10 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../../clients";
 import { Solution } from "../../endpoints/organization/sloution";
+import { useOfflineAwareQuery } from "../../offline/hooks/useOfflineAwareness";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type SolutionVoteType = "up" | "down";
-// ⚠️ must match VALID_STATUSES in the backend model
 type SolutionStatusValue = "open" | "in_progress" | "resolved";
 
 interface SolutionItem {
@@ -41,11 +41,11 @@ export const SOLUTION_KEYS = {
   tags: ["solutions", "tags"],
 };
 
-// ─── List solutions (org-scoped, this week + last week) ───────────────────
+// ─── List solutions ───────────────────────────────────────────────────────
 export const useSolutions = (filters: SolutionFilters = {}) => {
   const { tag, status } = filters;
 
-  return useQuery({
+  return useOfflineAwareQuery<SolutionItem[]>({
     queryKey: [...SOLUTION_KEYS.list, tag, status],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -58,12 +58,13 @@ export const useSolutions = (filters: SolutionFilters = {}) => {
       );
       return data.data;
     },
+    cacheKey: `solutions:list:${tag ?? "all"}:${status ?? "all"}`,
   });
 };
 
-// ─── Available solution tags ───────────────────────────────────────────────
+// ─── Available solution tags ──────────────────────────────────────────────
 export const useSolutionTags = () => {
-  return useQuery({
+  return useOfflineAwareQuery<string[]>({
     queryKey: SOLUTION_KEYS.tags,
     queryFn: async () => {
       const { data } = await api.get<{ success: boolean; data: string[] }>(
@@ -71,17 +72,19 @@ export const useSolutionTags = () => {
       );
       return data.data;
     },
+    cacheKey: "solutions:tags",
+    // Tags change rarely — 30 min stale window
+    staleTime: 1000 * 60 * 30,
   });
 };
 
-// ─── Organization posts a new solution ─────────────────────────────────────
+// ─── Organization posts a new solution ────────────────────────────────────
 export const useCreateSolution = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (payload: CreateSolutionPayload) => {
-          const { data } = await api.post(Solution.CREATE_SOLUTION, payload);
-          
+      const { data } = await api.post(Solution.CREATE_SOLUTION, payload);
       return data;
     },
     onSuccess: () => {
@@ -90,7 +93,7 @@ export const useCreateSolution = () => {
   });
 };
 
-// ─── Upvote / downvote a solution ──────────────────────────────────────────
+// ─── Upvote / downvote a solution ─────────────────────────────────────────
 export const useVoteSolution = () => {
   const queryClient = useQueryClient();
 
@@ -99,13 +102,40 @@ export const useVoteSolution = () => {
       const { data } = await api.patch(Solution.VOTE_SOLUTION(id), { type });
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (response, { id, type }) => {
+      // Update vote counts directly in cache — no refetch needed
+      queryClient.setQueriesData<SolutionItem[]>(
+        { queryKey: SOLUTION_KEYS.list },
+        (old) => {
+          if (!old) return old;
+          return old.map((s) => {
+            if (s.id !== id) return s;
+            const wasUp   = s.userVote === "up";
+            const wasDown = s.userVote === "down";
+            const toggling = s.userVote === type;
+            return {
+              ...s,
+              upvotes:
+                type === "up"
+                  ? toggling ? s.upvotes - 1 : s.upvotes + 1 - (wasDown ? 0 : 0)
+                  : wasUp ? s.upvotes - 1 : s.upvotes,
+              downvotes:
+                type === "down"
+                  ? toggling ? s.downvotes - 1 : s.downvotes + 1
+                  : wasDown ? s.downvotes - 1 : s.downvotes,
+              userVote: toggling ? null : type,
+            };
+          });
+        }
+      );
+    },
+    onError: () => {
       queryClient.invalidateQueries({ queryKey: SOLUTION_KEYS.list });
     },
   });
 };
 
-// ─── Organization pins / unpins its own solution ───────────────────────────
+// ─── Pin / unpin a solution ───────────────────────────────────────────────
 export const usePinSolution = () => {
   const queryClient = useQueryClient();
 
@@ -114,13 +144,23 @@ export const usePinSolution = () => {
       const { data } = await api.patch(Solution.PIN_SOLUTION(id));
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      // Toggle pin in cache immediately
+      queryClient.setQueriesData<SolutionItem[]>(
+        { queryKey: SOLUTION_KEYS.list },
+        (old) =>
+          old
+            ? old.map((s) => (s.id === id ? { ...s, pinned: !s.pinned } : s))
+            : old
+      );
+    },
+    onError: () => {
       queryClient.invalidateQueries({ queryKey: SOLUTION_KEYS.list });
     },
   });
 };
 
-// ─── Organization deletes its own solution ─────────────────────────────────
+// ─── Delete a solution ────────────────────────────────────────────────────
 export const useDeleteSolution = () => {
   const queryClient = useQueryClient();
 
@@ -129,7 +169,14 @@ export const useDeleteSolution = () => {
       const { data } = await api.delete(Solution.DELETE_SOLUTION(id));
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      // Remove from cache immediately — no refetch
+      queryClient.setQueriesData<SolutionItem[]>(
+        { queryKey: SOLUTION_KEYS.list },
+        (old) => (old ? old.filter((s) => s.id !== id) : old)
+      );
+    },
+    onError: () => {
       queryClient.invalidateQueries({ queryKey: SOLUTION_KEYS.list });
     },
   });

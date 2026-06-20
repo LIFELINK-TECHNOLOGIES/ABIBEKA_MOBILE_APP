@@ -25,11 +25,17 @@ type TabItem = {
   icon: string;
   label: string;
   component: React.ComponentType<any>;
-  requiredClearance?: number;
+  requiredClearance?: number; // minimum clearance needed — tab shows for this level AND above
 };
 
 const TAB_CONFIG: TabItem[] = [
-  { name: 'Home',    label: 'Home',     icon: '⬡', component: Home },
+  {
+    name: 'Home',
+    label: 'Home',
+    icon: '⬡',
+    component: Home,
+    requiredClearance: 4, // clearance level 4 and above only
+  },
   { name: 'Forum',   label: 'Forum',    icon: '◎', component: ForumScreen },
   { name: 'AI',      label: 'Abibeka',  icon: '✦', component: AbibekaChatScreen },
   {
@@ -37,9 +43,15 @@ const TAB_CONFIG: TabItem[] = [
     label: 'Roles',
     icon: '❖',
     component: AssignRoleScreen,
-    requiredClearance: 5, // only clearance level 5 can see this
+    requiredClearance: 4, // clearance level 4 and above only
   },
-  { name: 'Request', label: 'Requests', icon: '◈', component: JoinRequestsScreen },
+  {
+    name: 'Request',
+    label: 'Requests',
+    icon: '◈',
+    component: JoinRequestsScreen,
+    requiredClearance: 4, // clearance level 4 and above only
+  },
 ];
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
@@ -91,12 +103,17 @@ const Tab = createBottomTabNavigator();
 export default function OrganizationTab() {
   const user = useAuthStore(state => state.user);
 
-  // clearanceLevel is stored as a string in UserData, so parse it
-  const clearanceLevel = user?.clearanceLevel ? parseInt(user.clearanceLevel, 10) : 0;
+  // clearanceLevel is stored as a string in UserData, so parse it.
+  // Number.isNaN guard: if the string is malformed (e.g. empty, or not
+  // numeric), fall back to 0 rather than letting NaN silently make every
+  // `clearanceLevel >= requiredClearance` check false.
+  const parsedClearance = user?.clearanceLevel ? parseInt(user.clearanceLevel, 10) : 0;
+  const clearanceLevel = Number.isNaN(parsedClearance) ? 0 : parsedClearance;
+  console.log(clearanceLevel)
 
   const visibleTabs = TAB_CONFIG.filter(tab =>
-    // show tab if it has no clearance requirement, OR user meets the exact level
-    tab.requiredClearance === undefined || clearanceLevel === tab.requiredClearance
+    // show tab if it has no clearance requirement, OR the user meets/exceeds it
+    tab.requiredClearance === undefined || clearanceLevel >= tab.requiredClearance
   );
 
   return (

@@ -1,6 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../../clients";
 import { FORUM } from "../../endpoints/employee/forum";
+import { useOfflineAwareQuery } from "../../offline/hooks/useOfflineAwareness";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 interface ForumPost {
@@ -40,15 +42,16 @@ interface VoteResponse {
   };
 }
 
-// ─── Query keys ───────────────────────────────────────────────────────────
+// ─── Query keys ────────────────────────────────────────────────────────────
 export const FORUM_KEYS = {
-  posts: (page: number, tag?: string) => ["forum-posts", page, tag],
-  tags: ["forum-tags"],
+  posts: (page: number, tag?: string) =>
+    ["forum-posts", page, tag] as const,
+  tags: ["forum-tags"] as const,
 };
 
-// ─── Get forum posts ───────────────────────────────────────────────────────
+// ─── Get forum posts ────────────────────────────────────────────────────────
 export const useForumPosts = (page = 1, limit = 20, tag?: string) => {
-  return useQuery({
+  return useOfflineAwareQuery<GetPostsResponse>({
     queryKey: FORUM_KEYS.posts(page, tag),
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -61,12 +64,13 @@ export const useForumPosts = (page = 1, limit = 20, tag?: string) => {
       );
       return data;
     },
+    cacheKey: `forum:posts:${page}:${tag ?? "all"}`,
   });
 };
 
-// ─── Get forum tags ────────────────────────────────────────────────────────
+// ─── Get forum tags ─────────────────────────────────────────────────────────
 export const useForumTags = () => {
-  return useQuery({
+  return useOfflineAwareQuery<string[]>({
     queryKey: FORUM_KEYS.tags,
     queryFn: async () => {
       const { data } = await api.get<{ success: boolean; data: string[] }>(
@@ -74,10 +78,11 @@ export const useForumTags = () => {
       );
       return data.data;
     },
+    cacheKey: "forum:tags",
   });
 };
 
-// ─── Create post ───────────────────────────────────────────────────────────
+// ─── Create post ────────────────────────────────────────────────────────────
 export const useCreateForumPost = () => {
   const queryClient = useQueryClient();
 
@@ -92,7 +97,7 @@ export const useCreateForumPost = () => {
   });
 };
 
-// ─── Vote post (single endpoint, type: "up" | "down") ─────────────────────
+// ─── Vote post ──────────────────────────────────────────────────────────────
 export const useVoteForumPost = () => {
   const queryClient = useQueryClient();
 
@@ -102,7 +107,6 @@ export const useVoteForumPost = () => {
       return data;
     },
     onSuccess: (response, { id }) => {
-      // Update vote counts directly in cache — no refetch needed
       queryClient.setQueriesData<GetPostsResponse>(
         { queryKey: ["forum-posts"] },
         (old) => {
@@ -126,7 +130,7 @@ export const useVoteForumPost = () => {
   });
 };
 
-// ─── Delete post ───────────────────────────────────────────────────────────
+// ─── Delete post ────────────────────────────────────────────────────────────
 export const useDeleteForumPost = () => {
   const queryClient = useQueryClient();
 

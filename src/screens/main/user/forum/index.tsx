@@ -1,7 +1,8 @@
-import React, { use, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Animated,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,10 +29,11 @@ import { useAuthStore } from '../../../../store/authStore';
 
 // ─── Forum header ─────────────────────────────────────────────────────────────
 const ForumHeader = ({ activeToday }: { activeToday: number }) => {
-  const Organization = useAuthStore((state) => state.user?.joinedOrganizationName);
-  const Org_address = useAuthStore((state) => state.user?.location);
-  const Employee_range = useAuthStore((state) => state.user?.employeeRange);
+  const Organization   = useAuthStore((s) => s.user?.joinedOrganizationName);
+  const Org_address    = useAuthStore((s) => s.user?.location);
+  const Employee_range = useAuthStore((s) => s.user?.employeeRange);
   const { t } = useTranslation();
+
   return (
     <View style={s.header}>
       <View style={s.orgIconWrap}>
@@ -80,7 +82,6 @@ const PostCard = ({
   const upActive   = post.userVote === 'up';
   const downActive = post.userVote === 'down';
   const score      = post.upvotes - post.downvotes;
-
   const primaryTag = post.tags[0] ?? '';
   const tagData    = MOOD_TAGS.find((t) => t.label === primaryTag);
   const tagColor   = tagData?.color ?? B.muted;
@@ -163,7 +164,7 @@ const NewPostSheet = ({
   visible,
   onClose,
   onPost,
-  isPosting, // FIX 1: Accept isPosting prop to show loading state & prevent double-submit
+  isPosting,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -189,15 +190,11 @@ const NewPostSheet = ({
 
   if (!mounted) return null;
 
-  // FIX 2: Tag is now optional — only block submission if content is empty.
-  // Previously `!tag` caused silent no-op when user hadn't picked a mood tag.
   const canSubmit = content.trim().length > 0 && !isPosting;
 
   const submit = () => {
     if (!canSubmit) return;
-    onPost(content.trim(), tag); // tag may be empty string — backend accepts tags: []
-    // FIX 3: Don't close immediately; parent closes via onSuccess so the user
-    // sees a loading state rather than the sheet vanishing before the post lands.
+    onPost(content.trim(), tag);
   };
 
   return (
@@ -212,7 +209,6 @@ const NewPostSheet = ({
           <Text style={s.sheetTitle}>{t('forum.shareAnonymously')}</Text>
           <Text style={s.sheetSub}>{t('forum.visibleToOrgOnly', { org: ORG.name })}</Text>
         </View>
-        {/* FIX 4: Disable close while posting so users can't dismiss mid-flight */}
         <Pressable onPress={isPosting ? undefined : onClose} hitSlop={12}>
           <Text style={{ fontSize: 20, color: isPosting ? B.muted2 : B.muted }}>✕</Text>
         </Pressable>
@@ -227,11 +223,10 @@ const NewPostSheet = ({
           multiline
           numberOfLines={5}
           style={s.textInput}
-          maxLength={500} // FIX 5: Align with backend limit (was 280, backend allows 500)
+          maxLength={500}
           textAlignVertical="top"
           editable={!isPosting}
         />
-        {/* FIX 6: Count down from 500 to match the actual backend constraint */}
         <Text style={[s.charCount, { color: content.length > 450 ? B.red : B.muted2 }]}>
           {500 - content.length}
         </Text>
@@ -262,7 +257,6 @@ const NewPostSheet = ({
         </View>
       </ScrollView>
 
-      {/* FIX 7: Hint only blocks on missing content, not missing tag (tag is optional) */}
       {!content.trim() && (
         <Text style={s.postHint}>{t('forum.hintContent')}</Text>
       )}
@@ -273,7 +267,6 @@ const NewPostSheet = ({
         disabled={!canSubmit}
         style={[s.postBtn, !canSubmit && { opacity: 0.35 }]}
       >
-        {/* FIX 8: Show loading text while mutation is in-flight */}
         <Text style={s.postBtnText}>
           {isPosting ? t('forum.posting') : t('forum.postToForum')}
         </Text>
@@ -284,12 +277,15 @@ const NewPostSheet = ({
 };
 
 // ─── Feed tab ─────────────────────────────────────────────────────────────────
+// Now accepts refreshing + onRefresh and forwards them to the ScrollView
 type FeedFilter = 'all' | 'trending' | 'recent';
 
 const FeedTab = ({
   posts,
   onVote,
   onNewPost,
+  refreshing,
+  onRefresh,
 }: {
   posts: {
     id: string;
@@ -304,14 +300,37 @@ const FeedTab = ({
   onVote: (id: string, dir: 'up' | 'down') => void;
   onNewPost: () => void;
   filter: FeedFilter;
+  refreshing: boolean;
+  onRefresh: () => void;
 }) => (
   <View style={{ flex: 1 }}>
-    <ScrollView showsVerticalScrollIndicator={false}>
-      {posts.map((post) => (
-        <PostCard key={post.id} post={post} onVote={onVote} />
-      ))}
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      // ── Pull-to-refresh ──────────────────────────────────────────────────
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          // Match the app's dark theme
+          tintColor={B.accent}
+          colors={[B.accent]}
+          progressBackgroundColor={B.surfaceRaised}
+        />
+      }
+    >
+      {posts.length === 0 && !refreshing ? (
+        <View style={{ alignItems: 'center', paddingTop: 60 }}>
+          <Text style={{ fontSize: 32, marginBottom: 12 }}>💬</Text>
+          <Text style={{ color: B.muted, fontSize: 14 }}>No posts yet. Be the first!</Text>
+        </View>
+      ) : (
+        posts.map((post) => (
+          <PostCard key={post.id} post={post} onVote={onVote} />
+        ))
+      )}
       <View style={{ height: 110 }} />
     </ScrollView>
+
     <Pressable
       onPress={onNewPost}
       style={[s.fab, { backgroundColor: B.primary, shadowColor: B.primary }]}
@@ -325,10 +344,9 @@ const FeedTab = ({
 export const ForumScreen = () => {
   const { t } = useTranslation();
 
-  
-  const hasOrganization = useAuthStore((state) => state.user?.organizationId !== null);
-  const isOrganization = useAuthStore((state) => state.user?.role === 'ORGANIZATION');
-  const role = useAuthStore((state) => state.user?.role);
+  const hasOrganization = useAuthStore((s) => s.user?.organizationId !== null);
+  const isOrganization  = useAuthStore((s) => s.user?.role === 'ORGANIZATION');
+  const role            = useAuthStore((s) => s.user?.role);
 
   type ActiveTab = 'all' | 'trending' | 'recent' | 'solutions';
   const [activeTab, setActiveTab]             = useState<ActiveTab>('all');
@@ -339,44 +357,38 @@ export const ForumScreen = () => {
 
   const tagFilter = undefined;
 
-  const { data: postsData, isLoading: postsLoading } = useForumPosts(page, 20, tagFilter);
-  const { mutate: createPost, isPending: isPosting, error}  = useCreateForumPost();
-  const { mutate: votePost } = useVoteForumPost();
-  
-  console.log('ForumScreen render:', { postsData, isPosting, error });
+  // ── Data + pull-to-refresh from the hook ──────────────────────────────────
+  const {
+    data: postsData,
+    isLoading: postsLoading,
+    refreshing,          // true when a refetch is in-flight after the initial load
+    onRefresh,           // call this from RefreshControl
+    isOffline,           // true when expo-network says no connection
+    isShowingStale,      // true when rendering cached data while fetching fresh
+  } = useForumPosts(page, 20, tagFilter);
+
+  const { mutate: createPost, isPending: isPosting } = useCreateForumPost();
+  const { mutate: votePost }                          = useVoteForumPost();
 
   const posts = postsData?.data ?? [];
 
-  
   if (role === 'EMPLOYEE' && !hasOrganization) {
-  return (
-    <View style={{ flex: 1, backgroundColor: B.bg, paddingTop: 23 }}>
-      <NoOrgScreen/>
-    </View>
-  );
-}
-  
-  const handleVote = (id: string, dir: 'up' | 'down') => {
-    votePost({ id, type: dir });
+    return (
+      <View style={{ flex: 1, backgroundColor: B.bg, paddingTop: 23 }}>
+        <NoOrgScreen />
+      </View>
+    );
+  }
+
+  const handleVote = (id: string, dir: 'up' | 'down') => votePost({ id, type: dir });
+
+  const handlePost = (content: string, tag: string) => {
+    createPost(
+      { content, tags: tag ? [tag] : [] },
+      { onSuccess: () => setShowNewPost(false) }
+    );
   };
 
-  // FIX 9: onSuccess closes the sheet — not the submit handler.
-  // This way the sheet stays open with the loading state until the server confirms.
-const handlePost = (content: string, tag: string) => {
-  const payload = { content, tags: tag ? [tag] : [] };
-  console.log('POST payload:', JSON.stringify(payload));
-
-  createPost(payload, {
-    onSuccess: () => setShowNewPost(false),
-    onError: (err: unknown) => {
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosErr = err as { response?: { data?: unknown; status?: number } };
-        console.log('400 response body:', JSON.stringify(axiosErr.response?.data));
-        console.log('400 status:', axiosErr.response?.status);
-      }
-    },
-  });
-};
   const handleSolutionVote = (id: string, dir: 'up' | 'down') => {
     setSolutions((prev) =>
       prev.map((sol) => {
@@ -393,7 +405,7 @@ const handlePost = (content: string, tag: string) => {
               : sol.downvotes - (sol.userVote === 'down' ? 1 : 0),
           userVote: sol.userVote === dir ? null : dir,
         };
-      }),
+      })
     );
   };
 
@@ -429,7 +441,21 @@ const handlePost = (content: string, tag: string) => {
     <View style={{ flex: 1, backgroundColor: B.bg, paddingTop: 23 }}>
       <ForumHeader activeToday={ORG.activeToday} />
 
-      {/* ── Tab bar ── */}
+      {/* ── Offline / stale banner ────────────────────────────────────────── */}
+      {isOffline && (
+        <View style={s.offlineBanner}>
+          <Text style={s.offlineBannerText}>
+            📡 You're offline — showing cached posts
+          </Text>
+        </View>
+      )}
+      {!isOffline && isShowingStale && (
+        <View style={s.staleBanner}>
+          <Text style={s.staleBannerText}>⟳ Refreshing…</Text>
+        </View>
+      )}
+
+      {/* ── Tab bar ────────────────────────────────────────────────────────── */}
       <View style={s.tabBar}>
         <View style={s.tabBarRow}>
           <ScrollView
@@ -475,9 +501,10 @@ const handlePost = (content: string, tag: string) => {
         </View>
       </View>
 
-      {/* ── Content ── */}
+      {/* ── Content ────────────────────────────────────────────────────────── */}
       {!isSolutions ? (
-        postsLoading ? (
+        // Show a spinner only on the very first load (no cached data at all)
+        postsLoading && posts.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: B.muted }}>Loading...</Text>
           </View>
@@ -487,6 +514,9 @@ const handlePost = (content: string, tag: string) => {
             onVote={handleVote}
             onNewPost={() => setShowNewPost(true)}
             filter={activeTab as FeedFilter}
+            // ── wire pull-to-refresh ──────────────────────────────────────
+            refreshing={refreshing}
+            onRefresh={onRefresh}
           />
         )
       ) : (
@@ -498,14 +528,13 @@ const handlePost = (content: string, tag: string) => {
         />
       )}
 
-      {/* ── Overlays ── */}
+      {/* ── Overlays ───────────────────────────────────────────────────────── */}
       {(showNewPost || showNewSolution) && (
         <Pressable
           style={[
             StyleSheet.absoluteFillObject,
             { backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 998 },
           ]}
-          // FIX 11: Don't allow backdrop dismiss while a post is being submitted
           onPress={() => {
             if (!isPosting) {
               setShowNewPost(false);
@@ -515,7 +544,6 @@ const handlePost = (content: string, tag: string) => {
         />
       )}
 
-      {/* FIX 12: Pass isPosting down so the sheet can reflect loading state */}
       <NewPostSheet
         visible={showNewPost}
         onClose={() => setShowNewPost(false)}
@@ -534,6 +562,26 @@ const handlePost = (content: string, tag: string) => {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
+  // Banners
+  offlineBanner: {
+    backgroundColor: B.red + '18',
+    borderBottomWidth: 1,
+    borderBottomColor: B.red + '30',
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  offlineBannerText: { fontSize: 12, color: B.red, fontWeight: '600' },
+  staleBanner: {
+    backgroundColor: B.amber + '12',
+    borderBottomWidth: 1,
+    borderBottomColor: B.amber + '25',
+    paddingVertical: 5,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  staleBannerText: { fontSize: 11, color: B.amber, fontWeight: '600' },
+
   // Header
   header: {
     flexDirection: 'row',
@@ -651,14 +699,6 @@ const s = StyleSheet.create({
   },
   moodDot:     { width: 5, height: 5, borderRadius: 3 },
   moodTagText: { fontSize: 11, fontWeight: '700' },
-  trendBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 7,
-    backgroundColor: B.amber + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   postMeta:    { fontSize: 11, color: B.muted2, marginTop: 2 },
   postContent: {
     fontSize: 15,

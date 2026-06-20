@@ -1,12 +1,14 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
+  RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useQueryClient } from "@tanstack/react-query";
 import Header from "./component/header";
 import AiCard from "./component/aiCard";
 import CheckInCard from "./component/checkIn";
@@ -18,6 +20,10 @@ import { WINDOW_WIDTH } from "./component/layout";
 import Gap from "../../../../components/common/gap";
 import OrgCard from "../../../../components/common/orgCard";
 import { B } from "../../../../constant/them";
+import {
+  MOOD_DASHBOARD_KEY,
+  MOOD_TODAY_KEY,
+} from "../../../../api/hooks/shared/moodEntry";
 
 export default function HomeScreen() {
   const a = Array.from(
@@ -25,6 +31,27 @@ export default function HomeScreen() {
     () => useRef(new Animated.Value(0)).current,
   );
   const [headerA, aiA, checkInA, moodA, trendA, stressA, emotionA, orgA] = a;
+
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  // ── Pull-to-refresh ───────────────────────────────────────────────────
+  // Targets exactly the two query families that feed these cards.
+  // Partial key matching means MOOD_DASHBOARD_KEY catches every
+  // useMoodDashboard(range) variant, no matter what range each card uses.
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: MOOD_DASHBOARD_KEY }),
+        queryClient.refetchQueries({ queryKey: MOOD_TODAY_KEY }),
+      ]);
+    } catch (err) {
+      console.log("HOME REFRESH FAILED:", err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [queryClient]);
 
   useEffect(() => {
     Animated.stagger(
@@ -52,6 +79,15 @@ export default function HomeScreen() {
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={B.primary}
+              colors={[B.primary]}
+              progressBackgroundColor={B.surface ?? "#0F1628"}
+            />
+          }
         >
           <Header anim={headerA} />
           {/* <Gap />

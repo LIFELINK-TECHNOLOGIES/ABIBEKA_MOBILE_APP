@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ScrollView, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { View, ScrollView, Text, StyleSheet, SafeAreaView, RefreshControl } from 'react-native';
 import { C } from './components/tokens';
 
 import { Header } from './components/Header';
@@ -30,19 +30,17 @@ const QUICK_ACTIONS: QuickAction[] = [
 const pulseColor = (score: number) =>
   score >= 70 ? C.green : score >= 50 ? C.amber : C.red;
 
-// high value good (mood, energy) → green when high
 const goodColor = (pct: number) =>
   pct >= 65 ? C.green : pct >= 40 ? C.amber : C.red;
 
-// high value bad (stress, burnout) → green when LOW
 const badColor = (pct: number) =>
   pct <= 30 ? C.green : pct <= 55 ? C.amber : C.red;
 
 const pulseStatus = (score: number) => {
-  if (score >= 80) return { label: 'Excellent 🚀', color: C.green };
-  if (score >= 65) return { label: 'Good 👍',       color: C.green };
-  if (score >= 50) return { label: 'Moderate ⚡',   color: C.amber };
-  return               { label: 'Needs attention ⚠️', color: C.red };
+  if (score >= 80) return { label: 'Excellent 🚀',        color: C.green };
+  if (score >= 65) return { label: 'Good 👍',              color: C.green };
+  if (score >= 50) return { label: 'Moderate ⚡',          color: C.amber };
+  return               { label: 'Needs attention ⚠️',    color: C.red   };
 };
 
 const DEPT_ICONS: Record<string, string> = {
@@ -67,9 +65,9 @@ const emojiFor = (e: string) =>
 
 const CHIP_PALETTES = [
   { bg: 'rgba(15,118,110,0.1)',  border: 'rgba(15,118,110,0.28)',  color: '#5DCAA5' },
-  { bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.28)',  color: C.amber  },
+  { bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.28)',  color: C.amber   },
   { bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.28)', color: '#A78BFA' },
-  { bg: 'rgba(34,197,94,0.1)',  border: 'rgba(34,197,94,0.28)',   color: C.green  },
+  { bg: 'rgba(34,197,94,0.1)',  border: 'rgba(34,197,94,0.28)',   color: C.green   },
   { bg: 'rgba(239,68,68,0.1)',  border: 'rgba(239,68,68,0.28)',   color: '#F87171' },
   { bg: 'rgba(56,189,248,0.1)', border: 'rgba(56,189,248,0.28)', color: '#38BDF8' },
 ];
@@ -80,7 +78,7 @@ const heatBg = (intensity: number) => {
   return `rgba(239,68,68,${(0.1 + intensity * 0.6).toFixed(2)})`;
 };
 
-// ─── Main transform: raw API → component props ────────────────────────────────
+// ─── Main transform ───────────────────────────────────────────────────────────
 const buildDashboardProps = (raw: OrgDashboardRaw) => {
   const {
     totalEmployees, departmentCount, totalCheckInsToday, checkInRate,
@@ -88,11 +86,11 @@ const buildDashboardProps = (raw: OrgDashboardRaw) => {
     alertDept, alertStressChange,
   } = raw;
 
-  const checkedInDepts = departments.filter((d) => d.checkedInToday > 0);
-  const totalCI        = checkedInDepts.reduce((s, d) => s + d.checkedInToday, 0);
-  const weightedMood   = totalCI > 0
-    ? checkedInDepts.reduce((s, d) => s + d.avgMood * d.checkedInToday, 0) / totalCI : 0;
-  const weightedEnergy = totalCI > 0
+  const checkedInDepts  = departments.filter((d) => d.checkedInToday > 0);
+  const totalCI         = checkedInDepts.reduce((s, d) => s + d.checkedInToday, 0);
+  const weightedMood    = totalCI > 0
+    ? checkedInDepts.reduce((s, d) => s + d.avgMood   * d.checkedInToday, 0) / totalCI : 0;
+  const weightedEnergy  = totalCI > 0
     ? checkedInDepts.reduce((s, d) => s + d.avgEnergy * d.checkedInToday, 0) / totalCI : 0;
 
   const burnoutRisk     = moodDistribution.stressed;
@@ -123,8 +121,10 @@ const buildDashboardProps = (raw: OrgDashboardRaw) => {
     },
   ];
 
-  const pulse = { score: goodLevel, status: ps.label, statusColor: ps.color,
-    delta: `${goodLevel >= 65 ? '↑' : '↓'} wellness score` };
+  const pulse = {
+    score: goodLevel, status: ps.label, statusColor: ps.color,
+    delta: `${goodLevel >= 65 ? '↑' : '↓'} wellness score`,
+  };
 
   const productivity: ProductivityMetric[] = [
     {
@@ -154,16 +154,16 @@ const buildDashboardProps = (raw: OrgDashboardRaw) => {
   ];
 
   const moods: MoodItem[] = [
-    { name: '😌 Calm',     pct: moodDistribution.calm,     color: C.teal  },
-    { name: '😤 Stressed', pct: moodDistribution.stressed, color: C.amber },
-    { name: '😊 Great',    pct: moodDistribution.great,    color: C.green },
+    { name: '😌 Calm',     pct: moodDistribution.calm,     color: C.teal    },
+    { name: '😤 Stressed', pct: moodDistribution.stressed, color: C.amber   },
+    { name: '😊 Great',    pct: moodDistribution.great,    color: C.green   },
     { name: '😔 Low',      pct: moodDistribution.low,      color: '#8B5CF6' },
     { name: '😐 Okay',     pct: moodDistribution.okay,     color: '#94A3B8' },
   ].filter((m) => m.pct > 0);
 
   const depts: DeptData[] = departments.map((d) => {
-    const pc    = pulseColor(d.pulseScore);
-    const icon  = deptIcon(d.name);
+    const pc   = pulseColor(d.pulseScore);
+    const icon = deptIcon(d.name);
     const isRed = d.pulseScore < 50;
     return {
       icon, name: d.name,
@@ -175,13 +175,13 @@ const buildDashboardProps = (raw: OrgDashboardRaw) => {
       redBorder:  isRed,
       metrics: [
         {
-          label: 'Mood', val: `${d.avgMood}`, suffix: '/10',
-          valColor: goodColor(Math.round((d.avgMood / 10) * 100)),
+          label: 'Mood',     val: `${d.avgMood}`,      suffix: '/10',
+          valColor: goodColor(Math.round((d.avgMood   / 10) * 100)),
           pct: Math.round((d.avgMood / 10) * 100),
-          barColor: goodColor(Math.round((d.avgMood / 10) * 100)),
+          barColor: goodColor(Math.round((d.avgMood   / 10) * 100)),
         },
         {
-          label: 'Stress', val: `${d.avgStress}`, suffix: '%',
+          label: 'Stress',   val: `${d.avgStress}`,    suffix: '%',
           valColor: badColor(d.avgStress), pct: d.avgStress, barColor: badColor(d.avgStress),
         },
         {
@@ -191,7 +191,7 @@ const buildDashboardProps = (raw: OrgDashboardRaw) => {
           barColor: C.teal,
         },
         {
-          label: 'Energy', val: `${d.avgEnergy}`, suffix: '/10',
+          label: 'Energy',   val: `${d.avgEnergy}`,    suffix: '/10',
           valColor: goodColor(Math.round((d.avgEnergy / 10) * 100)),
           pct: Math.round((d.avgEnergy / 10) * 100),
           barColor: goodColor(Math.round((d.avgEnergy / 10) * 100)),
@@ -214,40 +214,79 @@ const buildDashboardProps = (raw: OrgDashboardRaw) => {
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function HomeScreen() {
-  const { data: raw, isLoading, isError, refetch, error } = useOrgDashboard();
-  console.log(error)
+  const {
+    data: raw,
+    isLoading,
+    isError,
+    refreshing,       // pull-to-refresh state
+    onRefresh,        // pull-to-refresh handler
+    isOffline,        // no network detected
+    isShowingStale,   // cached data visible while refetching
+  } = useOrgDashboard();
 
   const isEmpty = !isLoading && !isError && (!raw || raw.departments.length === 0);
   const built   = raw ? buildDashboardProps(raw) : null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
+
+      {/* ── Offline banner ──────────────────────────────────────────────── */}
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>
+            📡 You're offline — showing cached data
+          </Text>
+        </View>
+      )}
+
+      {/* ── Stale / refreshing banner ───────────────────────────────────── */}
+      {!isOffline && isShowingStale && (
+        <View style={styles.staleBanner}>
+          <Text style={styles.staleBannerText}>⟳ Refreshing dashboard…</Text>
+        </View>
+      )}
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        // ── Pull-to-refresh ───────────────────────────────────────────────
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={C.teal}
+            colors={[C.teal]}
+            progressBackgroundColor={C.surface ?? '#0F1628'}
+          />
+        }
       >
         <View style={styles.statusBar}>
           <Text style={styles.statusText}>9:41</Text>
           <Text style={styles.statusText}>●●●</Text>
         </View>
 
-        {isLoading && <DashboardSkeleton />}
+        {/* ── First-load skeleton — only when no cached data ────────────── */}
+        {isLoading && !raw && <DashboardSkeleton />}
 
-        {isError && !isLoading && (
+        {/* ── Error — only when offline with zero cached data ───────────── */}
+        {isError && !raw && (
           <View style={styles.errorWrap}>
+            <Text style={{ fontSize: 32, marginBottom: 8 }}>⚠️</Text>
             <Text style={styles.errorText}>Could not load dashboard</Text>
-            <Text style={styles.errorRetry} onPress={() => refetch()}>Tap to retry</Text>
+            <Text style={styles.errorRetry} onPress={onRefresh}>
+              Pull down or tap to retry
+            </Text>
           </View>
         )}
 
         {isEmpty && <EmptyState />}
 
-        {!isLoading && !isError && !isEmpty && built && (
+        {!isLoading && !isError && !isEmpty && built && raw && (
           <>
             <Header data={{
-              departmentCount: raw!.departmentCount,
-              employeeCount:   raw!.totalEmployees,
+              departmentCount: raw.departmentCount,
+              employeeCount:   raw.totalEmployees,
             }} />
 
             <Alert message={built.alertMessage} />
@@ -273,8 +312,43 @@ export default function HomeScreen() {
             <SectionLabel label="STRESS HEATMAP · BY DAY" />
             <StressHeatmap days={built.heatmapDays} />
 
-            <SectionLabel label="QUICK ACTIONS" />
-            <QuickActions actions={QUICK_ACTIONS} />
+            {/* <SectionLabel label="QUICK ACTIONS" />
+            <QuickActions actions={QUICK_ACTIONS} /> */}
+
+            <View style={{ height: 40 }} />
+          </>
+        )}
+
+        {/* ── Show stale cached data while fetching fresh ───────────────── */}
+        {(isLoading || isError) && raw && built && (
+          <>
+            <Header data={{
+              departmentCount: raw.departmentCount,
+              employeeCount:   raw.totalEmployees,
+            }} />
+
+            <Alert message={built.alertMessage} />
+
+            <SectionLabel label="OVERVIEW" />
+            <HeadlineStats stats={built.headlineStats} />
+
+            <SectionLabel label="TEAM PULSE" />
+            <PulseCard data={built.pulse} />
+
+            <SectionLabel label="PRODUCTIVITY METRICS" />
+            <ProductivityMetrics metrics={built.productivity} />
+
+            <SectionLabel label="MOOD DISTRIBUTION" />
+            <MoodDistribution moods={built.moods} />
+
+            <SectionLabel label="DEPARTMENTS" />
+            <Departments depts={built.depts} />
+
+            <SectionLabel label="TOP EMOTIONS THIS WEEK" />
+            <EmotionChips chips={built.emotionChips} />
+
+            <SectionLabel label="STRESS HEATMAP · BY DAY" />
+            <StressHeatmap days={built.heatmapDays} />
 
             <View style={{ height: 40 }} />
           </>
@@ -288,14 +362,38 @@ const styles = StyleSheet.create({
   safeArea:      { flex: 1, backgroundColor: C.bg },
   scroll:        { flex: 1, backgroundColor: C.bg },
   scrollContent: { paddingBottom: 20 },
+
+  // Banners
+  offlineBanner: {
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(239,68,68,0.2)',
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  offlineBannerText: { fontSize: 12, color: '#F87171', fontWeight: '600' },
+  staleBanner: {
+    backgroundColor: 'rgba(245,158,11,0.08)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(245,158,11,0.18)',
+    paddingVertical: 5,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  staleBannerText: { fontSize: 11, color: '#F59E0B', fontWeight: '600' },
+
   statusBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 14,
   },
-  statusText:  { fontSize: 11, color: 'rgba(255,255,255,0.3)' },
-  errorWrap:   { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 10 },
-  errorText:   { fontSize: 14, color: C.muted },
-  errorRetry:  { fontSize: 13, color: C.teal, fontWeight: '700' },
+  statusText: { fontSize: 11, color: 'rgba(255,255,255,0.3)' },
+
+  errorWrap:  { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 10 },
+  errorText:  { fontSize: 14, color: 'rgba(255,255,255,0.25)' },
+  errorRetry: { fontSize: 13, color: '#0F766E', fontWeight: '700' },
+
+  surface: { backgroundColor: '#0F1628' },
 });

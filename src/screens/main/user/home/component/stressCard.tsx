@@ -7,20 +7,33 @@ import { useMoodDashboard } from "../../../../../api/hooks/shared/moodEntry";
 
 type StressLevel = "calm" | "moderate" | "high";
 
-// Fallback classifier — only needed where the backend doesn't give us a
-// classification directly (the weekly avg/percentage has no per-entry tag).
 const classify = (pct: number): StressLevel =>
   pct >= 70 ? "high" : pct >= 50 ? "moderate" : "calm";
 
 const getColorForLevel = (level: StressLevel, b: typeof B) =>
   level === "high" ? b.red : level === "moderate" ? b.amber : b.accent;
 
-// Backend uses "calm", i18n keys use "low" — bridge the two.
 const levelKey = (level: StressLevel) => (level === "calm" ? "low" : level);
 
+// UTC-based day-of-week label, to stay consistent with utcDateKey below.
 const getDayLabel = (dateStr: string): string => {
   const days = ["S", "M", "T", "W", "T", "F", "S"];
-  return days[new Date(dateStr).getDay()];
+  return days[new Date(dateStr).getUTCDay()];
+};
+
+// Extract a YYYY-MM-DD key using UTC components. We compare in UTC rather
+// than the device's local timezone because the backend normalizes each
+// entry's `date` using the *server's* clock — matching in local time meant
+// the calendar day could silently drift between frontend and backend
+// whenever the server and device aren't in the same timezone (most hosting
+// defaults to UTC). UTC is the one frame both sides can agree on without
+// passing timezone offsets around.
+const utcDateKey = (input: string | Date): string => {
+  const d = new Date(input);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 };
 
 const MAX_H = 64;
@@ -29,8 +42,8 @@ const MAX_BARS = 7;
 type WeekSlot = {
   date: string;
   label: string;
-  value: number; // 0-100 stress percentage; 0 if no check-in that day
-  classification: StressLevel | null; // null = no check-in logged
+  value: number;
+  classification: StressLevel | null;
   hasEntry: boolean;
 };
 
@@ -47,9 +60,6 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
   }
   const barAnims = barAnimsRef.current;
 
-  // stress/moodTrend/emotionBreakdown are always rolling-7-day regardless of
-  // `range`, so the `7` here is just for clarity / cache-key consistency —
-  // it doesn't change what this slice of the response contains.
   const { data, isLoading } = useMoodDashboard(7);
 
   const stress = data?.data?.stress;
@@ -67,12 +77,9 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
   const prev = stressVals.length > 1 ? stressVals[stressVals.length - 2] : current;
   const delta = current - prev;
 
-  // Use the backend's own weekly percentage instead of re-averaging locally.
   const avg = stress ? Math.round(stress.percentage) : 0;
   const avgLevel = classify(avg);
 
-  // peakDay/calmestDay now carry their own real classification — no more
-  // hardcoding "high"/"low" regardless of the actual value.
   const peakDay = stress?.peakDay ?? null;
   const calmestDay = stress?.calmestDay ?? null;
   const peakVal = peakDay ? Math.round(peakDay.value * 10) : 0;
@@ -84,21 +91,15 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
 
   const stressColor = getColorForLevel(currentLevel, B);
 
-  // ── Fixed 7-day window (today + 6 days back) ──────────────────────────
-  // The backend only returns days that actually have a check-in, so a week
-  // with gaps would otherwise render fewer than 7 bars and look sparse/broken
-  // (justify-content: space-between spreads a handful of bars across the
-  // whole row). Building a constant 7-slot window and filling gaps with a
-  // muted placeholder keeps the chart visually stable no matter how many
-  // days the user actually logged.
+  // ── Fixed 7-day window (today + 6 days back), matched on UTC calendar day ──
   const weekWindow: WeekSlot[] = useMemo(() => {
     const slots: WeekSlot[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key = d.toDateString();
+      d.setUTCDate(d.getUTCDate() - i);
+      const key = utcDateKey(d);
 
-      const match = daily.find((entry) => new Date(entry.date).toDateString() === key);
+      const match = daily.find((entry) => utcDateKey(entry.date) === key);
 
       slots.push({
         date: d.toISOString(),
@@ -124,11 +125,6 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
         useNativeDriver: false,
       }).start();
 
-      // Animate actual height (not scaleY) so each bar grows up from the
-      // baseline correctly. RN scales transforms from the element's center
-      // by default, which made bars appear to float/shrink toward their
-      // own middle instead of growing from the bottom — height animation
-      // doesn't have that problem, at the cost of needing useNativeDriver: false.
       weekWindow.forEach((_, i) =>
         Animated.spring(barAnims[i], {
           toValue: 1,
@@ -181,7 +177,6 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
   return (
     <Animated.View style={{ opacity: anim, transform: [{ translateY: y }] }}>
       <Card>
-        {/* ── Header ── */}
         <View style={s.head}>
           <View>
             <Text style={s.title}>{t('home.stressLevel')}</Text>
@@ -202,7 +197,6 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
           </View>
         </View>
 
-        {/* ── Big number ── */}
         <View style={s.bigRow}>
           <Text style={[s.bigNum, { color: stressColor }]}>{current}</Text>
           <View style={s.bigRight}>
@@ -215,7 +209,6 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
           </View>
         </View>
 
-        {/* ── Gauge ── */}
         <View style={s.gaugeTrack}>
           <View style={[s.gaugeSegment, { left: "0%",  width: "40%", backgroundColor: B.accent + "55" }]} />
           <View style={[s.gaugeSegment, { left: "40%", width: "30%", backgroundColor: B.amber  + "55" }]} />
@@ -233,10 +226,8 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
           <Text style={s.gaugeLabelText}>{t('home.stressLevels.high')}</Text>
         </View>
 
-        {/* ── Divider ── */}
         <View style={s.divider} />
 
-        {/* ── Bar history ── */}
         <Text style={s.historyLabel}>{t('home.sevenDayHistory')}</Text>
         <View style={s.barRow}>
           {weekWindow.map((slot, i) => {
@@ -278,7 +269,6 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
           })}
         </View>
 
-        {/* ── Stat strip ── */}
         <View style={s.statRow}>
           <View style={s.statCard}>
             <Text style={s.statLabel}>{t('home.avgThisWeek')}</Text>

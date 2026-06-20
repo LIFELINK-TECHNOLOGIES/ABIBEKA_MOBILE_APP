@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../../clients";
 import { ORGANIZATION } from "../../endpoints/organization/org";
+import { useOfflineAwareQuery } from "../../offline/hooks/useOfflineAwareness"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type RequestAction = "accept" | "reject";
@@ -19,6 +20,7 @@ interface JoinRequestPayload {
   message?: string;
   department?: string;
 }
+
 interface OrganizationRequest {
   _id: string;
   employeeId: { _id: string; fullName: string; email: string } | string;
@@ -38,15 +40,15 @@ interface Employee {
 
 // ─── Query keys ───────────────────────────────────────────────────────────
 export const ORG_KEYS = {
-  list: ["organizations"],
-  incoming: ["organization-requests", "incoming"],
-  mine: ["organization-requests", "mine"],
+  list:      ["organizations"],
+  incoming:  ["organization-requests", "incoming"],
+  mine:      ["organization-requests", "mine"],
   employees: ["organization", "employees"],
 };
 
-// ─── List all organizations (employee browses to pick one) ────────────────
+// ─── List all organizations ───────────────────────────────────────────────
 export const useListOrganizations = () => {
-  return useQuery({
+  return useOfflineAwareQuery<OrgListItem[]>({
     queryKey: ORG_KEYS.list,
     queryFn: async () => {
       const { data } = await api.get<{ success: boolean; data: OrgListItem[] }>(
@@ -54,6 +56,7 @@ export const useListOrganizations = () => {
       );
       return data.data;
     },
+    cacheKey: "org:list",
   });
 };
 
@@ -74,7 +77,7 @@ export const useRequestJoinOrganization = () => {
 
 // ─── Employee views their own request history ─────────────────────────────
 export const useMyRequests = () => {
-  return useQuery({
+  return useOfflineAwareQuery<OrganizationRequest[]>({
     queryKey: ORG_KEYS.mine,
     queryFn: async () => {
       const { data } = await api.get<{ success: boolean; data: OrganizationRequest[] }>(
@@ -82,12 +85,15 @@ export const useMyRequests = () => {
       );
       return data.data;
     },
+    cacheKey: "org:my-requests",
   });
 };
 
 // ─── Organization views incoming requests ─────────────────────────────────
-export const useIncomingRequests = (status: "PENDING" | "ACCEPTED" | "REJECTED" = "PENDING") => {
-  return useQuery({
+export const useIncomingRequests = (
+  status: "PENDING" | "ACCEPTED" | "REJECTED" = "PENDING"
+) => {
+  return useOfflineAwareQuery<OrganizationRequest[]>({
     queryKey: [...ORG_KEYS.incoming, status],
     queryFn: async () => {
       const { data } = await api.get<{ success: boolean; data: OrganizationRequest[] }>(
@@ -95,10 +101,11 @@ export const useIncomingRequests = (status: "PENDING" | "ACCEPTED" | "REJECTED" 
       );
       return data.data;
     },
+    cacheKey: `org:incoming-requests:${status}`,
   });
 };
 
-// ─── Organization accepts or rejects a request ───────────────────────────
+// ─── Organization accepts or rejects a request ────────────────────────────
 export const useRespondToRequest = () => {
   const queryClient = useQueryClient();
 
@@ -116,7 +123,7 @@ export const useRespondToRequest = () => {
 
 // ─── Organization views all its employees ────────────────────────────────
 export const useOrganizationEmployees = () => {
-  return useQuery({
+  return useOfflineAwareQuery<Employee[]>({
     queryKey: ORG_KEYS.employees,
     queryFn: async () => {
       const { data } = await api.get<{ success: boolean; data: Employee[] }>(
@@ -124,6 +131,9 @@ export const useOrganizationEmployees = () => {
       );
       return data.data;
     },
+    cacheKey: "org:employees",
+    // Employees list changes less often — 10 min stale window
+    staleTime: 1000 * 60 * 10,
   });
 };
 
@@ -132,11 +142,28 @@ export const usePromoteEmployee = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ employeeId, position }: { employeeId: string; position: EmployeePosition }) => {
-      const { data } = await api.patch(ORGANIZATION.PROMOTE_EMPLOYEE(employeeId), { position });
+    mutationFn: async ({
+      employeeId,
+      position,
+    }: {
+      employeeId: string;
+      position: EmployeePosition;
+    }) => {
+      const { data } = await api.patch(ORGANIZATION.PROMOTE_EMPLOYEE(employeeId), {
+        position,
+      });
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, { employeeId, position }) => {
+      // Optimistic cache update — no refetch round-trip needed
+      queryClient.setQueryData<Employee[]>(ORG_KEYS.employees, (old) =>
+        old
+          ? old.map((e) => (e._id === employeeId ? { ...e, position } : e))
+          : old
+      );
+    },
+    onError: () => {
+      // Roll back to server truth on failure
       queryClient.invalidateQueries({ queryKey: ORG_KEYS.employees });
     },
   });
@@ -151,7 +178,13 @@ export const useRemoveEmployee = () => {
       const { data } = await api.delete(ORGANIZATION.REMOVE_EMPLOYEE(employeeId));
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, employeeId) => {
+      // Remove from cache immediately
+      queryClient.setQueryData<Employee[]>(ORG_KEYS.employees, (old) =>
+        old ? old.filter((e) => e._id !== employeeId) : old
+      );
+    },
+    onError: () => {
       queryClient.invalidateQueries({ queryKey: ORG_KEYS.employees });
     },
   });

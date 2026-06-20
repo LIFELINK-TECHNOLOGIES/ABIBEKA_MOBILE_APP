@@ -1,10 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -530,9 +531,23 @@ export const SolutionsTab = ({
   onNewSolution: () => void;
 }) => {
   const { t } = useTranslation();
-  const { data: solutions = [], isLoading, isError } = useSolutions();
+  const { data: solutions = [], isLoading, isError, refetch } = useSolutions();
   const { mutate: vote } = useVoteSolution();
   const { name: orgName } = useOrganizationInfo();
+
+  // ── Pull-to-refresh state ─────────────────────────────────────────────
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } catch (err) {
+      console.log('SOLUTIONS REFRESH FAILED:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   const handleVote = (id: string, dir: 'up' | 'down') => {
     vote({ id, type: dir });
@@ -558,7 +573,19 @@ export const SolutionsTab = ({
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        // ── Pull-to-refresh ───────────────────────────────────────────────
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={B.purpleLight}
+            colors={[B.purpleLight]}
+            progressBackgroundColor={B.surface ?? '#0F1628'}
+          />
+        }
+      >
         {!isOrganization && (
           <View style={s.readOnlyBanner}>
             <Text style={{ fontSize: 14 }}>👁️</Text>

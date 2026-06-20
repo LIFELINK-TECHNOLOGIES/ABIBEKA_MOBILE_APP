@@ -9,6 +9,7 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import {
   useOrganizationEmployees,
@@ -33,9 +34,8 @@ const C = {
 };
 
 // ─── Org roles ────────────────────────────────────────────────────────────────
-// These `id` values must match exactly what the backend `position` enum accepts
 type OrgRole = {
-  id: string;       // sent to API as `position`
+  id: string;
   title: string;
   short: string;
   icon: string;
@@ -126,10 +126,7 @@ const ORG_ROLES: OrgRole[] = [
   },
 ];
 
-// ─── Derived employee type from API ──────────────────────────────────────────
-// The API Employee type has: _id, fullName, email, position, createdAt
-// We derive initials and avatar colours locally — no need for a separate Employee state shape.
-
+// ─── Types ────────────────────────────────────────────────────────────────────
 type ApiEmployee = {
   _id: string;
   fullName: string;
@@ -138,29 +135,22 @@ type ApiEmployee = {
   createdAt: string;
 };
 
-// Deterministic avatar colour from name
+// ─── Avatar helpers ───────────────────────────────────────────────────────────
 const AVATAR_COLORS = [
-  { bg: 'rgba(239,68,68,0.18)',    text: '#F87171' },
-  { bg: 'rgba(15,118,110,0.18)',   text: '#5DCAA5' },
-  { bg: 'rgba(245,158,11,0.18)',   text: '#FCD34D' },
-  { bg: 'rgba(139,92,246,0.18)',   text: '#A78BFA' },
-  { bg: 'rgba(52,211,153,0.15)',   text: '#34D399' },
-  { bg: 'rgba(251,146,60,0.15)',   text: '#FB923C' },
-  { bg: 'rgba(232,121,249,0.15)',  text: '#E879F9' },
+  { bg: 'rgba(239,68,68,0.18)',   text: '#F87171' },
+  { bg: 'rgba(15,118,110,0.18)',  text: '#5DCAA5' },
+  { bg: 'rgba(245,158,11,0.18)',  text: '#FCD34D' },
+  { bg: 'rgba(139,92,246,0.18)',  text: '#A78BFA' },
+  { bg: 'rgba(52,211,153,0.15)',  text: '#34D399' },
+  { bg: 'rgba(251,146,60,0.15)',  text: '#FB923C' },
+  { bg: 'rgba(232,121,249,0.15)', text: '#E879F9' },
 ];
 
-const avatarColors = (name: string) => {
-  const idx = name.charCodeAt(0) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[idx];
-};
+const avatarColors = (name: string) =>
+  AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
 
 const initials = (name: string) =>
-  name
-    .split(' ')
-    .slice(0, 2)
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase();
+  name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase();
 
 // ─── Role Picker Modal ────────────────────────────────────────────────────────
 function RolePickerModal({
@@ -182,9 +172,9 @@ function RolePickerModal({
 }) {
   if (!employee) return null;
 
-  const isBusy = isAssigning || isRevoking;
+  const isBusy      = isAssigning || isRevoking;
   const currentRole = ORG_ROLES.find((r) => r.id === employee.position);
-  const colors = avatarColors(employee.fullName);
+  const colors      = avatarColors(employee.fullName);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -194,7 +184,6 @@ function RolePickerModal({
         onPress={isBusy ? undefined : onClose}
       />
       <View style={styles.modalSheet}>
-        {/* Handle */}
         <View style={styles.sheetHandle} />
 
         {/* Employee summary */}
@@ -206,7 +195,7 @@ function RolePickerModal({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.sheetEmpName}>{employee.fullName}</Text>
-            <Text style={styles.sheetEmpRole}>{employee.email}</Text>
+            <Text style={styles.sheetEmpEmail}>{employee.email}</Text>
           </View>
           {currentRole && (
             <View
@@ -293,23 +282,25 @@ function RolePickerModal({
             );
           })}
 
-          {/* Revoke — only show if employee has a non-STAFF role */}
-          {employee.position && employee.position !== 'STAFF' && employee.position !== '' && (
-            <TouchableOpacity
-              activeOpacity={0.75}
-              disabled={isBusy}
-              style={[styles.revokeBtn, isBusy && { opacity: 0.5 }]}
-              onPress={() => onRevoke(employee._id)}
-            >
-              {isRevoking ? (
-                <ActivityIndicator color="#F87171" />
-              ) : (
-                <Text style={styles.revokeBtnText}>
-                  Remove org role · revert to staff
-                </Text>
-              )}
-            </TouchableOpacity>
-          )}
+          {/* Revoke — only if employee has a non-STAFF role */}
+          {employee.position &&
+            employee.position !== 'STAFF' &&
+            employee.position !== '' && (
+              <TouchableOpacity
+                activeOpacity={0.75}
+                disabled={isBusy}
+                style={[styles.revokeBtn, isBusy && { opacity: 0.5 }]}
+                onPress={() => onRevoke(employee._id)}
+              >
+                {isRevoking ? (
+                  <ActivityIndicator color="#F87171" />
+                ) : (
+                  <Text style={styles.revokeBtnText}>
+                    Remove org role · revert to staff
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -354,8 +345,8 @@ function EmployeeRow({
             </View>
           )}
         </View>
-        <Text style={styles.empJobRole}>{emp.email}</Text>
-        <Text style={[styles.empDept, { color: C.muted2, marginTop: 2 }]}>
+        <Text style={styles.empEmail}>{emp.email}</Text>
+        <Text style={styles.empJoined}>
           Joined {new Date(emp.createdAt).toLocaleDateString()}
         </Text>
       </View>
@@ -369,36 +360,42 @@ function EmployeeRow({
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function AssignRoleScreen() {
-  const [search, setSearch]               = useState('');
-  const [selectedEmp, setSelectedEmp]     = useState<ApiEmployee | null>(null);
-  const [modalVisible, setModalVisible]   = useState(false);
+  const [search, setSearch]           = useState('');
+  const [selectedEmp, setSelectedEmp] = useState<ApiEmployee | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
   const [filterAssigned, setFilterAssigned] =
     useState<'all' | 'assigned' | 'unassigned'>('all');
 
-  // ── API hooks ──────────────────────────────────────────────────────────────
-  const { data: employees = [], isLoading, isError } = useOrganizationEmployees();
-  const { mutate: promote, isPending: isAssigning, error: promoteError }   = usePromoteEmployee();
-  const { mutate: remove, isPending: isRevoking } = useRemoveEmployee();
-  
-  console.log(promoteError)
+  // ── Data ──────────────────────────────────────────────────────────────────
+  const {
+    data: employees = [],
+    isLoading,
+    isError,
+    refreshing,       // ← pull-to-refresh state
+    onRefresh,        // ← pull-to-refresh handler
+    isOffline,        // ← no network
+    isShowingStale,   // ← showing cached while refetching
+  } = useOrganizationEmployees();
+
+  const { mutate: promote, isPending: isAssigning } = usePromoteEmployee();
+  const { mutate: remove,  isPending: isRevoking  } = useRemoveEmployee();
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleAssign = (empId: string, position: string) => {
     promote(
       { employeeId: empId, position: position as any },
-      { onSuccess: () => setModalVisible(false) },
+      { onSuccess: () => setModalVisible(false) }
     );
   };
 
-  // Revoking = promote to STAFF (no separate remove-role endpoint in your API)
   const handleRevoke = (empId: string) => {
     promote(
       { employeeId: empId, position: 'STAFF' },
-      { onSuccess: () => setModalVisible(false) },
+      { onSuccess: () => setModalVisible(false) }
     );
   };
 
-  // ── Filtering ──────────────────────────────────────────────────────────────
+  // ── Filtering ─────────────────────────────────────────────────────────────
   const hasRole = (emp: ApiEmployee) =>
     emp.position && emp.position !== '' && emp.position !== 'STAFF';
 
@@ -417,46 +414,73 @@ export default function AssignRoleScreen() {
 
   const assignedCount = employees.filter(hasRole).length;
 
-  // Active role summary strip
-  const roleStrip = ORG_ROLES.filter((r) => r.id !== 'STAFF').map((r) => ({
-    ...r,
-    count: employees.filter((e) => e.position === r.id).length,
-  })).filter((r) => r.count > 0);
+  const roleStrip = ORG_ROLES.filter((r) => r.id !== 'STAFF')
+    .map((r) => ({
+      ...r,
+      count: employees.filter((e) => e.position === r.id).length,
+    }))
+    .filter((r) => r.count > 0);
 
-  // Keep modal's employee in sync with latest server data
+  // Keep modal's employee in sync with latest server data after promote
   const liveSelectedEmp = selectedEmp
     ? employees.find((e) => e._id === selectedEmp._id) ?? selectedEmp
     : null;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-  if (isLoading) {
+  // ── Loading state — only on very first fetch with no cached data ───────────
+  if (isLoading && employees.length === 0) {
     return (
-      <SafeAreaView style={[styles.safeArea, { alignItems: 'center', justifyContent: 'center' }]}>
+      <SafeAreaView style={[styles.safeArea, styles.centered]}>
         <ActivityIndicator color={C.tealLight} size="large" />
-        <Text style={{ color: C.muted2, marginTop: 12, fontSize: 13 }}>
-          Loading employees…
-        </Text>
+        <Text style={styles.loadingText}>Loading employees…</Text>
       </SafeAreaView>
     );
   }
 
-  if (isError) {
+  // ── Error state — only when offline AND no cached data at all ─────────────
+  if (isError && employees.length === 0) {
     return (
-      <SafeAreaView style={[styles.safeArea, { alignItems: 'center', justifyContent: 'center' }]}>
+      <SafeAreaView style={[styles.safeArea, styles.centered]}>
         <Text style={{ fontSize: 32 }}>⚠️</Text>
-        <Text style={{ color: C.text, fontWeight: '700', marginTop: 8 }}>
-          Failed to load employees
-        </Text>
-        <Text style={{ color: C.muted2, fontSize: 12, marginTop: 4 }}>
-          Check your connection and try again.
-        </Text>
+        <Text style={styles.errorTitle}>Failed to load employees</Text>
+        <Text style={styles.errorSub}>Check your connection and pull down to retry.</Text>
+        {/* Still allow pull-to-refresh on the error screen */}
+        <ScrollView
+          style={{ position: 'absolute', width: '100%', height: '100%' }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={C.tealLight}
+              colors={[C.tealLight]}
+              progressBackgroundColor={C.surface}
+            />
+          }
+        />
       </SafeAreaView>
     );
   }
 
+  // ── Main render ───────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
+
+      {/* ── Offline banner ──────────────────────────────────────────────── */}
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>
+            📡 You're offline — showing cached data
+          </Text>
+        </View>
+      )}
+
+      {/* ── Stale / refreshing banner ───────────────────────────────────── */}
+      {!isOffline && isShowingStale && (
+        <View style={styles.staleBanner}>
+          <Text style={styles.staleBannerText}>⟳ Refreshing employee list…</Text>
+        </View>
+      )}
+
+      {/* ── Header ──────────────────────────────────────────────────────── */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Assign Roles</Text>
@@ -471,7 +495,7 @@ export default function AssignRoleScreen() {
         </View>
       </View>
 
-      {/* Active roles strip */}
+      {/* ── Active roles strip ──────────────────────────────────────────── */}
       {roleStrip.length > 0 && (
         <ScrollView
           horizontal
@@ -494,7 +518,7 @@ export default function AssignRoleScreen() {
         </ScrollView>
       )}
 
-      {/* Search */}
+      {/* ── Search ──────────────────────────────────────────────────────── */}
       <View style={styles.searchWrapper}>
         <Text style={{ fontSize: 13 }}>🔍</Text>
         <TextInput
@@ -504,9 +528,14 @@ export default function AssignRoleScreen() {
           value={search}
           onChangeText={setSearch}
         />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
+            <Text style={{ fontSize: 14, color: C.muted }}>✕</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Filter tabs */}
+      {/* ── Filter tabs ─────────────────────────────────────────────────── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -530,7 +559,9 @@ export default function AssignRoleScreen() {
                 {f.charAt(0).toUpperCase() + f.slice(1)}
               </Text>
               <View style={[styles.filterCount, isActive && styles.filterCountActive]}>
-                <Text style={[styles.filterCountText, isActive && styles.filterCountTextActive]}>
+                <Text
+                  style={[styles.filterCountText, isActive && styles.filterCountTextActive]}
+                >
                   {count}
                 </Text>
               </View>
@@ -539,17 +570,32 @@ export default function AssignRoleScreen() {
         })}
       </ScrollView>
 
-      {/* Employee list */}
+      {/* ── Employee list — pull-to-refresh lives here ───────────────────── */}
       <ScrollView
         style={styles.list}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={C.tealLight}
+            colors={[C.tealLight]}
+            progressBackgroundColor={C.surface}
+          />
+        }
       >
         {filtered.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={{ fontSize: 32 }}>👥</Text>
-            <Text style={styles.emptyTitle}>No employees found</Text>
-            <Text style={styles.emptySub}>Try a different search or filter</Text>
+            <Text style={styles.emptyTitle}>
+              {search.trim() ? 'No employees match your search' : 'No employees yet'}
+            </Text>
+            <Text style={styles.emptySub}>
+              {search.trim()
+                ? 'Try a different name, email, or role'
+                : 'Pull down to refresh'}
+            </Text>
           </View>
         ) : (
           filtered.map((emp, i) => (
@@ -568,7 +614,7 @@ export default function AssignRoleScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Role Picker Modal */}
+      {/* ── Role Picker Modal ────────────────────────────────────────────── */}
       <RolePickerModal
         employee={liveSelectedEmp}
         visible={modalVisible}
@@ -585,6 +631,32 @@ export default function AssignRoleScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: C.bg },
+  centered: { alignItems: 'center', justifyContent: 'center' },
+
+  // Banners
+  offlineBanner: {
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(239,68,68,0.2)',
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  offlineBannerText: { fontSize: 12, color: '#F87171', fontWeight: '600' },
+  staleBanner: {
+    backgroundColor: 'rgba(245,158,11,0.08)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(245,158,11,0.18)',
+    paddingVertical: 5,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  staleBannerText: { fontSize: 11, color: C.amber, fontWeight: '600' },
+
+  // Loading / error
+  loadingText: { color: C.muted2, marginTop: 12, fontSize: 13 },
+  errorTitle:  { color: C.text, fontWeight: '700', marginTop: 8, fontSize: 15 },
+  errorSub:    { color: C.muted2, fontSize: 12, marginTop: 4, textAlign: 'center' },
 
   // Header
   header: {
@@ -604,7 +676,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
     marginBottom: 3,
   },
-  headerSub: { fontSize: 11, color: C.muted2 },
+  headerSub:   { fontSize: 11, color: C.muted2 },
   headerBadge: {
     backgroundColor: 'rgba(15,118,110,0.18)',
     borderWidth: 1,
@@ -616,7 +688,7 @@ const styles = StyleSheet.create({
   headerBadgeText: { fontSize: 13, fontWeight: '800', color: C.tealLight },
 
   // Strip
-  stripRow: { paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
+  stripRow:       { paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
   stripChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -626,16 +698,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
   },
-  stripChipTitle: { fontSize: 11, fontWeight: '700' },
-  stripCount: { borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
-  stripCountText: { fontSize: 10, fontWeight: '800' },
+  stripChipTitle:  { fontSize: 11, fontWeight: '700' },
+  stripCount:      { borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
+  stripCountText:  { fontSize: 10, fontWeight: '800' },
 
   // Search
   searchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 14,
-    marginTop: 4,
+    marginTop: 12,
     backgroundColor: C.surface,
     borderWidth: 1,
     borderColor: C.border,
@@ -663,7 +735,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15,118,110,0.15)',
     borderColor: 'rgba(15,118,110,0.35)',
   },
-  filterTabText: { fontSize: 12, fontWeight: '600', color: C.muted2 },
+  filterTabText:       { fontSize: 12, fontWeight: '600', color: C.muted2 },
   filterTabTextActive: { color: C.tealLight },
   filterCount: {
     backgroundColor: 'rgba(255,255,255,0.07)',
@@ -671,18 +743,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 1,
   },
-  filterCountActive: { backgroundColor: 'rgba(15,118,110,0.25)' },
-  filterCountText: { fontSize: 10, fontWeight: '700', color: C.muted },
+  filterCountActive:     { backgroundColor: 'rgba(15,118,110,0.25)' },
+  filterCountText:       { fontSize: 10, fontWeight: '700', color: C.muted },
   filterCountTextActive: { color: C.tealLight },
 
   // List
-  list: { flex: 1 },
+  list:        { flex: 1 },
   listContent: { paddingTop: 6 },
-  rowDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    marginLeft: 76,
-  },
+  rowDivider:  { height: 1, backgroundColor: 'rgba(255,255,255,0.04)', marginLeft: 76 },
 
   // Employee row
   empRow: {
@@ -708,10 +776,9 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     flexWrap: 'wrap',
   },
-  empName: { fontSize: 14, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
-  empJobRole: { fontSize: 11, color: C.muted2, marginBottom: 4 },
-  empDeptRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  empDept: { fontSize: 10, fontWeight: '600' },
+  empName:    { fontSize: 14, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
+  empEmail:   { fontSize: 11, color: C.muted2, marginBottom: 3 },
+  empJoined:  { fontSize: 10, fontWeight: '600', color: C.muted },
   orgRolePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -723,12 +790,12 @@ const styles = StyleSheet.create({
   },
   orgRolePillIcon: { fontSize: 10 },
   orgRolePillText: { fontSize: 10, fontWeight: '700' },
-  chevron: { fontSize: 14, color: C.muted },
+  chevron:         { fontSize: 14, color: C.muted },
 
-  // Empty
+  // Empty state
   emptyState: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyTitle: { fontSize: 15, fontWeight: '700', color: C.text },
-  emptySub: { fontSize: 12, color: C.muted },
+  emptySub:   { fontSize: 12, color: C.muted },
 
   // Modal
   modalOverlay: {
@@ -758,8 +825,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 16,
   },
-
-  // Sheet employee row
   sheetEmpRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -774,9 +839,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  sheetAvatarText: { fontSize: 15, fontWeight: '900' },
-  sheetEmpName: { fontSize: 15, fontWeight: '800', color: C.text, marginBottom: 2 },
-  sheetEmpRole: { fontSize: 11, color: C.muted2 },
+  sheetAvatarText:       { fontSize: 15, fontWeight: '900' },
+  sheetEmpName:          { fontSize: 15, fontWeight: '800', color: C.text, marginBottom: 2 },
+  sheetEmpEmail:         { fontSize: 11, color: C.muted2 },
   sheetCurrentBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -784,11 +849,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   sheetCurrentBadgeText: { fontSize: 11, fontWeight: '700' },
-  sheetDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    marginBottom: 14,
-  },
+  sheetDivider:          { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginBottom: 14 },
   sheetLabel: {
     fontSize: 10,
     fontWeight: '700',
@@ -825,15 +886,15 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   roleOptionTitle: { fontSize: 14, fontWeight: '800' },
-  roleOptionDesc: { fontSize: 11, color: C.muted2, marginBottom: 7, lineHeight: 16 },
+  roleOptionDesc:  { fontSize: 11, color: C.muted2, marginBottom: 7, lineHeight: 16 },
   activeChip: {
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
     borderWidth: 1,
   },
-  activeChipText: { fontSize: 9, fontWeight: '700' },
-  permissionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
+  activeChipText:  { fontSize: 9, fontWeight: '700' },
+  permissionRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
   permChip: {
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1,
