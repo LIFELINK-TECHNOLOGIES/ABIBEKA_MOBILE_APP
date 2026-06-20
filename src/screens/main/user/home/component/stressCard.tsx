@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { ActivityIndicator, Animated, Easing, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import Card from "./card";
@@ -26,6 +26,14 @@ const getDayLabel = (dateStr: string): string => {
 const MAX_H = 64;
 const MAX_BARS = 7;
 
+type WeekSlot = {
+  date: string;
+  label: string;
+  value: number; // 0-100 stress percentage; 0 if no check-in that day
+  classification: StressLevel | null; // null = no check-in logged
+  hasEntry: boolean;
+};
+
 export default function StressCard({ anim }: { anim: Animated.Value }) {
   const { t } = useTranslation();
   const y = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
@@ -49,7 +57,6 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
 
   const stressVals = daily.map((d) => Math.round(d.value * 10));
   const dayClassifications = daily.map((d) => d.classification);
-  const dayLabels = daily.map((d) => getDayLabel(d.date));
 
   const current = stressVals.length > 0 ? stressVals[stressVals.length - 1] : 0;
   const currentLevel: StressLevel =
@@ -77,31 +84,62 @@ export default function StressCard({ anim }: { anim: Animated.Value }) {
 
   const stressColor = getColorForLevel(currentLevel, B);
 
-  
-const hasAnimatedRef = useRef(false);
+  // ── Fixed 7-day window (today + 6 days back) ──────────────────────────
+  // The backend only returns days that actually have a check-in, so a week
+  // with gaps would otherwise render fewer than 7 bars and look sparse/broken
+  // (justify-content: space-between spreads a handful of bars across the
+  // whole row). Building a constant 7-slot window and filling gaps with a
+  // muted placeholder keeps the chart visually stable no matter how many
+  // days the user actually logged.
+  const weekWindow: WeekSlot[] = useMemo(() => {
+    const slots: WeekSlot[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toDateString();
 
-useEffect(() => {
-  if (stressVals.length > 0 && !hasAnimatedRef.current) {
-    hasAnimatedRef.current = true;
+      const match = daily.find((entry) => new Date(entry.date).toDateString() === key);
 
-    Animated.timing(gaugeAnim, {
-      toValue: current / 100,
-      duration: 1000,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
+      slots.push({
+        date: d.toISOString(),
+        label: getDayLabel(d.toISOString()),
+        value: match ? Math.round(match.value * 10) : 0,
+        classification: match ? match.classification : null,
+        hasEntry: !!match,
+      });
+    }
+    return slots;
+  }, [daily]);
 
-    stressVals.forEach((_, i) =>
-      Animated.spring(barAnims[i], {
-        toValue: 1,
-        delay: i * 55,
-        tension: 60,
-        friction: 9,
-        useNativeDriver: true,
-      }).start(),
-    );
-  }
-}, [stressVals.length]);
+  const hasAnimatedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isLoading && !hasAnimatedRef.current) {
+      hasAnimatedRef.current = true;
+
+      Animated.timing(gaugeAnim, {
+        toValue: current / 100,
+        duration: 1000,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start();
+
+      // Animate actual height (not scaleY) so each bar grows up from the
+      // baseline correctly. RN scales transforms from the element's center
+      // by default, which made bars appear to float/shrink toward their
+      // own middle instead of growing from the bottom — height animation
+      // doesn't have that problem, at the cost of needing useNativeDriver: false.
+      weekWindow.forEach((_, i) =>
+        Animated.spring(barAnims[i], {
+          toValue: 1,
+          delay: i * 55,
+          tension: 60,
+          friction: 9,
+          useNativeDriver: false,
+        }).start(),
+      );
+    }
+  }, [isLoading]);
 
   const gaugeW = gaugeAnim.interpolate({
     inputRange: [0, 1],
@@ -201,23 +239,27 @@ useEffect(() => {
         {/* ── Bar history ── */}
         <Text style={s.historyLabel}>{t('home.sevenDayHistory')}</Text>
         <View style={s.barRow}>
-          {stressVals.map((v, i) => {
-            const isToday = i === stressVals.length - 1;
-            const level   = dayClassifications[i] ?? classify(v);
-            const c       = getColorForLevel(level, B);
-            const h       = Math.max(4, (v / 100) * MAX_H);
+          {weekWindow.map((slot, i) => {
+            const isToday = i === weekWindow.length - 1;
+            const level = slot.classification ?? classify(slot.value);
+            const c = getColorForLevel(level, B);
+            const h = slot.hasEntry ? Math.max(4, (slot.value / 100) * MAX_H) : 3;
+            const barColor = slot.hasEntry ? (isToday ? c : c + "50") : "rgba(255,255,255,0.10)";
+
             return (
-              <View key={i} style={[s.barCol, { height: MAX_H }]}>
+              <View key={slot.date} style={[s.barCol, { height: MAX_H }]}>
                 <View style={{ flex: 1, justifyContent: "flex-end" }}>
                   <Animated.View
                     style={[
                       s.bar,
                       {
-                        height: h,
-                        backgroundColor: isToday ? c : c + "50",
-                        borderWidth: isToday ? 1 : 0,
+                        height: barAnims[i].interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, h],
+                        }),
+                        backgroundColor: barColor,
+                        borderWidth: isToday && slot.hasEntry ? 1 : 0,
                         borderColor: c + "50",
-                        transform: [{ scaleY: barAnims[i] }],
                       },
                     ]}
                   />
@@ -226,9 +268,10 @@ useEffect(() => {
                   style={[
                     s.barLabel,
                     isToday && { color: stressColor, fontWeight: "700" },
+                    !slot.hasEntry && { opacity: 0.5 },
                   ]}
                 >
-                  {isToday ? t('home.now') : dayLabels[i]}
+                  {isToday ? t('home.now') : slot.label}
                 </Text>
               </View>
             );

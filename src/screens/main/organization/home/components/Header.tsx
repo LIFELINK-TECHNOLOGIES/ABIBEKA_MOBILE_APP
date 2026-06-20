@@ -9,12 +9,24 @@ type HeaderData = {
 };
 
 export const Header = ({ data }: { data: HeaderData }) => {
-  const logout = useAuthStore((s) => s.logout);
-  const user   = useAuthStore((s) => s.user);
+  const logout      = useAuthStore((s) => s.logout);
+  const user        = useAuthStore((s) => s.user);
+  const userRole    = useAuthStore((s) => s.userRole);
+  const setUserRole = useAuthStore((s) => s.setUserRole);
 
-  const orgName      = user?.organization   ?? '—';
-  const employeeRange = user?.employeeRange  ?? '';
-  const role         = user?.role           ?? '';
+  const orgName       = user?.organization  ?? '—';
+  const employeeRange = user?.employeeRange ?? '';
+
+  // Only employees/accounts actually tied to an organization can switch views.
+  // A user with no organization has nothing to switch between.
+  const canSwitchRole = Boolean(user?.role === "EMPLOYEE");
+
+  const handleSwitchRole = () => {
+    setUserRole(userRole === 'employee' ? 'organization' : 'employee');
+  };
+
+  // Label shows the view you're switching INTO, not the current one
+  const switchLabel = userRole === 'employee' ? 'View as Org' : 'View as Employee';
 
   return (
     <View style={styles.header}>
@@ -26,10 +38,23 @@ export const Header = ({ data }: { data: HeaderData }) => {
         </Text>
       </View>
 
-      <TouchableOpacity onPress={logout} style={styles.logoutBtn} activeOpacity={0.75}>
-        <Text style={styles.logoutIcon}>🚪</Text>
-        <Text style={styles.logoutLabel}>Logout</Text>
-      </TouchableOpacity>
+      <View style={styles.actions}>
+        {canSwitchRole && (
+          <TouchableOpacity
+            onPress={handleSwitchRole}
+            style={styles.switchBtn}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.switchIcon}>🔄</Text>
+            <Text style={styles.switchLabel} numberOfLines={1}>{switchLabel}</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity onPress={logout} style={styles.logoutBtn} activeOpacity={0.75}>
+          <Text style={styles.logoutIcon}>🚪</Text>
+          <Text style={styles.logoutLabel}>Logout</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -54,6 +79,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: C.muted2,
     marginTop: 3,
+  },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  switchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(99,102,241,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.2)',
+  },
+  switchIcon: { fontSize: 14 },
+  switchLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6366F1',
   },
   logoutBtn: {
     flexDirection: 'row',

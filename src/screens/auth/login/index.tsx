@@ -149,6 +149,50 @@ const LangSelector = ({
   );
 };
 
+// ─── Role selector (only shown when lastUsedRole === 'employee') ─────────────
+
+const RoleSelector = ({
+  selected,
+  onSelect,
+  enterAnim,
+}: {
+  selected: "employee" | "organization";
+  onSelect: (role: "employee" | "organization") => void;
+  enterAnim: Animated.Value;
+}) => {
+  const slideY = enterAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [12, 0],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.roleBlock,
+        { opacity: enterAnim, transform: [{ translateY: slideY }] },
+      ]}
+    >
+      <Text style={styles.roleLabel}>Continue as</Text>
+      <View style={styles.roleRow}>
+        {(["employee", "organization"] as const).map((r) => {
+          const active = selected === r;
+          return (
+            <Pressable
+              key={r}
+              onPress={() => onSelect(r)}
+              style={[styles.rolePill, active && styles.rolePillActive]}
+            >
+              <Text style={[styles.rolePillText, active && styles.rolePillTextActive]}>
+                {r === "employee" ? "Employee" : "Organization"}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </Animated.View>
+  );
+};
+
 // ─── Input field ─────────────────────────────────────────────────────────────
 
 const InputField = ({
@@ -247,9 +291,20 @@ export default function LoginScreen({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  // Role read from the store — survives logout because it's lastUsedRole,
+  // not the session-scoped userRole (which logout() does still clear).
+  const lastUsedRole = useAuthStore((s) => s.lastUsedRole);
+  const setUserRole = useAuthStore((s) => s.setUserRole);
+  const showRoleSwitch = lastUsedRole === "employee";
+
+  const [selectedRole, setSelectedRole] = useState<"employee" | "organization">(
+    lastUsedRole === "organization" ? "organization" : "employee"
+  );
+
   const logoAnim = useRef(new Animated.Value(0)).current;
   const headAnim = useRef(new Animated.Value(0)).current;
   const langAnim = useRef(new Animated.Value(0)).current;
+  const roleAnim = useRef(new Animated.Value(0)).current;
   const cardAnim = useRef(new Animated.Value(0)).current;
   const f1Anim = useRef(new Animated.Value(0)).current;
   const f2Anim = useRef(new Animated.Value(0)).current;
@@ -268,6 +323,16 @@ export default function LoginScreen({
     navigation.navigate("SignUp");
   };
 
+  const handleSelectRole = (role: "employee" | "organization") => {
+    setSelectedRole(role);
+    // Reflects the choice into the active store immediately. NOTE: this
+    // does not by itself change what the backend returns on login — if
+    // your API needs to know which role the person intends to log in as,
+    // that needs to be passed into loginUser() below. Share useLogin's
+    // implementation and I can wire that through properly.
+    setUserRole(role);
+  };
+
   useEffect(() => {
     Animated.stagger(70, [
       Animated.spring(logoAnim, {
@@ -283,6 +348,12 @@ export default function LoginScreen({
         useNativeDriver: true,
       }),
       Animated.spring(langAnim, {
+        toValue: 1,
+        tension: 55,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+      Animated.spring(roleAnim, {
         toValue: 1,
         tension: 55,
         friction: 12,
@@ -433,6 +504,15 @@ export default function LoginScreen({
               enterAnim={langAnim}
             />
 
+            {/* Role selector — only when lastUsedRole === 'employee' */}
+            {showRoleSwitch && (
+              <RoleSelector
+                selected={selectedRole}
+                onSelect={handleSelectRole}
+                enterAnim={roleAnim}
+              />
+            )}
+
             {/* Card Frame */}
             <Animated.View
               style={[
@@ -573,6 +653,31 @@ const styles = StyleSheet.create({
   langFlag: { fontSize: 14 },
   langLabel: { fontSize: 12, fontWeight: "600", color: BRAND.muted },
   langLabelActive: { color: BRAND.primary },
+  roleBlock: { marginBottom: 24 },
+  roleLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.4)",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  roleRow: { flexDirection: "row", gap: 10 },
+  rolePill: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  rolePillActive: {
+    borderColor: BRAND.primary,
+    backgroundColor: "rgba(15,118,110,0.12)",
+  },
+  rolePillText: { fontSize: 13, fontWeight: "700", color: BRAND.muted },
+  rolePillTextActive: { color: BRAND.primary },
   card: {
     backgroundColor: BRAND.card,
     borderRadius: 24,

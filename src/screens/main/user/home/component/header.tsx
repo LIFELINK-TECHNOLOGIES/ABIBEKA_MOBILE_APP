@@ -18,6 +18,8 @@ const LANGUAGES = [
   { code: "pcm", label: "PCM", flag: "🇳🇬" },
 ];
 
+const MIN_CLEARANCE_FOR_ORG_SWITCH = 3;
+
 const getGreeting = () => {
   const hr = new Date().getHours();
   if (hr < 12) return "Good morning";
@@ -27,8 +29,12 @@ const getGreeting = () => {
 
 export default function Header({ anim }: { anim: Animated.Value }) {
   const { i18n } = useTranslation();
-  const { user, logout } = useAuthStore();
+  const { user, logout, userRole, setUserRole } = useAuthStore();
   const y = anim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] });
+
+  const clearanceLevel = parseInt(user?.clearanceLevel ?? "0", 10) || 0;
+  const canSwitchToOrg =
+    clearanceLevel >= MIN_CLEARANCE_FOR_ORG_SWITCH && userRole !== "organization";
 
   const handleLogout = () => {
     Alert.alert(
@@ -45,11 +51,15 @@ export default function Header({ anim }: { anim: Animated.Value }) {
     );
   };
 
+  const handleSwitchToOrg = () => {
+    setUserRole("organization");
+  };
+
   return (
     <Animated.View
       style={[s.wrap, { opacity: anim, transform: [{ translateY: y }] }]}
     >
-      {/* Top row: greeting + logout */}
+      {/* Top row: greeting + actions */}
       <View style={s.topRow}>
         <View style={{ flex: 1 }}>
           <Text style={s.greeting}>{getGreeting()}</Text>
@@ -57,6 +67,13 @@ export default function Header({ anim }: { anim: Animated.Value }) {
             {user?.fullName || user?.organization || "User"}
           </Text> */}
         </View>
+
+        {canSwitchToOrg && (
+          <Pressable onPress={handleSwitchToOrg} style={s.switchBtn} hitSlop={8}>
+            <Text style={s.switchIcon}>🏢</Text>
+            <Text style={s.switchText}>Org view</Text>
+          </Pressable>
+        )}
 
         <Pressable onPress={handleLogout} style={s.logoutBtn} hitSlop={8}>
           <Text style={s.logoutIcon}>⎋</Text>
@@ -93,6 +110,7 @@ const s = StyleSheet.create({
   topRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
   },
   greeting: {
     fontSize: 20,
@@ -104,6 +122,25 @@ const s = StyleSheet.create({
     fontWeight: "900",
     color: B.text,
     letterSpacing: -0.7,
+  },
+  switchBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: B.primary + "14",
+    borderWidth: 1,
+    borderColor: B.primary + "30",
+  },
+  switchIcon: {
+    fontSize: 14,
+  },
+  switchText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: B.primary,
   },
   logoutBtn: {
     flexDirection: "row",

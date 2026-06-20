@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
-import { queryClient } from "../utils/queryClient"
+import { queryClient } from '../utils/queryClient';
 
 type UserRole = 'employee' | 'organization' | null;
 
@@ -26,6 +26,10 @@ interface AuthState {
   isOnboarded: boolean;
   isAuthenticated: boolean;
   userRole: UserRole;
+  // Mirrors userRole at the moment of onboarding/login, but is NEVER
+  // cleared by logout(). Lets screens like Login offer a quick
+  // "continue as employee / organization" choice even when signed out.
+  lastUsedRole: UserRole;
   user: UserData | null;
   hasHydrated: boolean; // true once SecureStore has finished loading on app start
 
@@ -47,6 +51,7 @@ const initialState = {
   isOnboarded: false,
   isAuthenticated: false,
   userRole: null as UserRole,
+  lastUsedRole: null as UserRole,
   user: null as UserData | null,
   hasHydrated: false,
 };
@@ -79,25 +84,27 @@ export const useAuthStore = create<AuthState>()(
         set({
           isOnboarded: true,
           userRole: role,
+          lastUsedRole: role,
         }),
 
       login: (role, user) =>
         set({
           isAuthenticated: true,
           userRole: role,
+          lastUsedRole: role,
           user: user ?? null,
         }),
 
       logout: () => {
-        // Wipe every cached server response (mood entries, dashboard, etc.)
-        // so the next user on this device never sees stale data, and this
-        // user never sees a flash of stale data if they log back in fast.
+        // Wipe every cached server response so the next user on this
+        // device never sees stale data.
         queryClient.clear();
 
         set({
           isAuthenticated: false,
           userRole: null,
           user: null,
+          // lastUsedRole intentionally NOT cleared here.
         });
       },
 
@@ -114,6 +121,7 @@ export const useAuthStore = create<AuthState>()(
         isOnboarded: state.isOnboarded,
         isAuthenticated: state.isAuthenticated,
         userRole: state.userRole,
+        lastUsedRole: state.lastUsedRole,
         user: state.user,
       }),
       onRehydrateStorage: () => (state) => {
