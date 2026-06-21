@@ -17,7 +17,7 @@ export default function AuthNavigation() {
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             {
-                isOnboarded ? <Stack.Screen name="Onboarding" component={OnboardingScreen} /> 
+                !isOnboarded ? <Stack.Screen name="Onboarding" component={OnboardingScreen} /> 
                     : 
                     <>
                         <Stack.Screen name="Login" component={LoginScreen}/>
