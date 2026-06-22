@@ -248,7 +248,7 @@ export default function OnboardingScreen({
               />
             </Animated.View>
 
-            {isLast && (
+            {/* {isLast && (
               <Pressable onPress={onLogin} style={styles.loginRow} hitSlop={8}>
                 <Text size="sm" variant="regular" color="textSecondary">
                   Already have an account?{" "}
@@ -257,7 +257,7 @@ export default function OnboardingScreen({
                   Sign up
                 </Text>
               </Pressable>
-            )}
+            )} */}
           </View>
         </Animated.View>
       </SafeAreaView>
