@@ -4,28 +4,29 @@
     "slug": "ABIBEKA",
     "version": "1.0.0",
     "orientation": "portrait",
+
     "icon": "./assets/AbibekaIcon.jpeg",
+
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
     },
+
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "splash": {
-      "image": "./assets/AbibekaLogo.jpeg",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
+
     "ios": {
       "supportsTablet": true
     },
+
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/AbibekaLogo.jpeg",
+        "foregroundImage": "./assets/AbibekaIcon.jpeg",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -33,12 +34,23 @@
       "package": "com.olamide01.ABIBEKA",
       "minSdkVersion": 21
     },
+
     "web": {
       "favicon": "./assets/favicon.png"
     },
+
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/AbibekaLogo.jpeg",
+          "resizeMode": "contain",
+          "backgroundColor": "#0e0e1a"
+        }
+      ],
       "expo-secure-store"
     ],
+
     "extra": {
       "eas": {
         "projectId": "b2994dc2-0c08-49d1-b1ac-3c1a79fd1e0c"
