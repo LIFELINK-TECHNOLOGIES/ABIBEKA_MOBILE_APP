@@ -279,7 +279,7 @@ interface SignUpScreenProps {
   onSignInPress?: () => void;
 }
 
-export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
+export default function SignUpScreen() {
   const { t, i18n } = useTranslation();
   const navigation = useNavigation();
 
@@ -639,7 +639,7 @@ export default function SignUpScreen({ onSignInPress }: SignUpScreenProps) {
             {/* Account Switch Redirection Footer */}
             <Animated.View style={[styles.footer, { opacity: fadeAnim }]}>
               <Text style={styles.footerText}>{t('auth.alreadyTracking')}</Text>
-              <Pressable onPress={onSignInPress} hitSlop={10}>
+              <Pressable onPress={() => navigation.navigate("Login")} hitSlop={10}>
                 <Text style={styles.footerLink}> {t('common.signIn')}</Text>
               </Pressable>
             </Animated.View>

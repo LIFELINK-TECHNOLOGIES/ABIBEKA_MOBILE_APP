@@ -212,20 +212,65 @@ const buildDashboardProps = (raw: OrgDashboardRaw) => {
   return { alertMessage, headlineStats, pulse, productivity, moods, depts, emotionChips, heatmapDays };
 };
 
+// ─── Shared dashboard content ─────────────────────────────────────────────────
+// Extracted to avoid duplicating the full JSX tree for the stale-data case.
+const DashboardContent = ({
+  raw,
+  built,
+}: {
+  raw: OrgDashboardRaw;
+  built: ReturnType<typeof buildDashboardProps>;
+}) => (
+  <>
+    <Header data={{
+      departmentCount: raw.departmentCount,
+      employeeCount:   raw.totalEmployees,
+    }} />
+
+    <Alert message={built.alertMessage} />
+
+    <SectionLabel label="OVERVIEW" />
+    <HeadlineStats stats={built.headlineStats} />
+
+    <SectionLabel label="TEAM PULSE" />
+    <PulseCard data={built.pulse} />
+
+    <SectionLabel label="PRODUCTIVITY METRICS" />
+    <ProductivityMetrics metrics={built.productivity} />
+
+    <SectionLabel label="MOOD DISTRIBUTION" />
+    <MoodDistribution moods={built.moods} />
+
+    <SectionLabel label="DEPARTMENTS" />
+    <Departments depts={built.depts} />
+
+    <SectionLabel label="TOP EMOTIONS THIS WEEK" />
+    <EmotionChips chips={built.emotionChips} />
+
+    <SectionLabel label="STRESS HEATMAP · BY DAY" />
+    <StressHeatmap days={built.heatmapDays} />
+
+    <View style={{ height: 40 }} />
+  </>
+);
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const {
     data: raw,
     isLoading,
     isError,
-    refreshing,       // pull-to-refresh state
-    onRefresh,        // pull-to-refresh handler
-    isOffline,        // no network detected
-    isShowingStale,   // cached data visible while refetching
+    refreshing,
+    onRefresh,
+    isOffline,
+    isShowingStale,
   } = useOrgDashboard();
 
   const isEmpty = !isLoading && !isError && (!raw || raw.departments.length === 0);
   const built   = raw ? buildDashboardProps(raw) : null;
+
+  // Fallback header props when no real data is available
+  const fallbackHeader = { departmentCount: 0, employeeCount: 0 };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -250,7 +295,6 @@ export default function HomeScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        // ── Pull-to-refresh ───────────────────────────────────────────────
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -269,89 +313,40 @@ export default function HomeScreen() {
         {/* ── First-load skeleton — only when no cached data ────────────── */}
         {isLoading && !raw && <DashboardSkeleton />}
 
-        {/* ── Error — only when offline with zero cached data ───────────── */}
+        {/* ── Error state — always show header for context ──────────────── */}
         {isError && !raw && (
-          <View style={styles.errorWrap}>
-            <Text style={{ fontSize: 32, marginBottom: 8 }}>⚠️</Text>
-            <Text style={styles.errorText}>Could not load dashboard</Text>
-            <Text style={styles.errorRetry} onPress={onRefresh}>
-              Pull down or tap to retry
-            </Text>
-          </View>
+          <>
+            <Header data={fallbackHeader} />
+            <View style={styles.errorWrap}>
+              <Text style={styles.errorIcon}>⚠️</Text>
+              <Text style={styles.errorTitle}>Dashboard unavailable</Text>
+              <Text style={styles.errorSub}>
+                We couldn't fetch your team's data.{'\n'}
+                Check your connection and try again.
+              </Text>
+              <Text style={styles.errorRetry} onPress={onRefresh}>
+                ↻  Tap to retry
+              </Text>
+            </View>
+          </>
         )}
 
-        {isEmpty && <EmptyState />}
+        {/* ── Empty state — always show header for context ──────────────── */}
+        {isEmpty && (
+          <>
+            <Header data={fallbackHeader} />
+            <EmptyState />
+          </>
+        )}
 
+        {/* ── Fresh data ────────────────────────────────────────────────── */}
         {!isLoading && !isError && !isEmpty && built && raw && (
-          <>
-            <Header data={{
-              departmentCount: raw.departmentCount,
-              employeeCount:   raw.totalEmployees,
-            }} />
-
-            <Alert message={built.alertMessage} />
-
-            <SectionLabel label="OVERVIEW" />
-            <HeadlineStats stats={built.headlineStats} />
-
-            <SectionLabel label="TEAM PULSE" />
-            <PulseCard data={built.pulse} />
-
-            <SectionLabel label="PRODUCTIVITY METRICS" />
-            <ProductivityMetrics metrics={built.productivity} />
-
-            <SectionLabel label="MOOD DISTRIBUTION" />
-            <MoodDistribution moods={built.moods} />
-
-            <SectionLabel label="DEPARTMENTS" />
-            <Departments depts={built.depts} />
-
-            <SectionLabel label="TOP EMOTIONS THIS WEEK" />
-            <EmotionChips chips={built.emotionChips} />
-
-            <SectionLabel label="STRESS HEATMAP · BY DAY" />
-            <StressHeatmap days={built.heatmapDays} />
-
-            {/* <SectionLabel label="QUICK ACTIONS" />
-            <QuickActions actions={QUICK_ACTIONS} /> */}
-
-            <View style={{ height: 40 }} />
-          </>
+          <DashboardContent raw={raw} built={built} />
         )}
 
-        {/* ── Show stale cached data while fetching fresh ───────────────── */}
+        {/* ── Stale cached data shown while refetching ──────────────────── */}
         {(isLoading || isError) && raw && built && (
-          <>
-            <Header data={{
-              departmentCount: raw.departmentCount,
-              employeeCount:   raw.totalEmployees,
-            }} />
-
-            <Alert message={built.alertMessage} />
-
-            <SectionLabel label="OVERVIEW" />
-            <HeadlineStats stats={built.headlineStats} />
-
-            <SectionLabel label="TEAM PULSE" />
-            <PulseCard data={built.pulse} />
-
-            <SectionLabel label="PRODUCTIVITY METRICS" />
-            <ProductivityMetrics metrics={built.productivity} />
-
-            <SectionLabel label="MOOD DISTRIBUTION" />
-            <MoodDistribution moods={built.moods} />
-
-            <SectionLabel label="DEPARTMENTS" />
-            <Departments depts={built.depts} />
-
-            <SectionLabel label="TOP EMOTIONS THIS WEEK" />
-            <EmotionChips chips={built.emotionChips} />
-
-            <SectionLabel label="STRESS HEATMAP · BY DAY" />
-            <StressHeatmap days={built.heatmapDays} />
-
-            <View style={{ height: 40 }} />
-          </>
+          <DashboardContent raw={raw} built={built} />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -391,9 +386,33 @@ const styles = StyleSheet.create({
   },
   statusText: { fontSize: 11, color: 'rgba(255,255,255,0.3)' },
 
-  errorWrap:  { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 10 },
-  errorText:  { fontSize: 14, color: 'rgba(255,255,255,0.25)' },
-  errorRetry: { fontSize: 13, color: '#0F766E', fontWeight: '700' },
+  // Error state
+  errorWrap: {
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 32,
+    gap: 10,
+  },
+  errorIcon:  { fontSize: 44, marginBottom: 4 },
+  errorTitle: { fontSize: 16, color: 'rgba(255,255,255,0.75)', fontWeight: '700' },
+  errorSub:   {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.35)',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  errorRetry: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#0F766E',
+    fontWeight: '700',
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(15,118,110,0.35)',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
 
   surface: { backgroundColor: '#0F1628' },
 });
