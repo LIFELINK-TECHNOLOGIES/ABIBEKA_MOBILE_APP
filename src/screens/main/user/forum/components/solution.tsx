@@ -25,7 +25,7 @@ import {
   useVoteSolution,
   useCreateSolution,
 } from '../../../../../api/hooks/organization/useSolution';
-import { useAuthStore } from '../../../../../store/authStore'; 
+import { useAuthStore } from '../../../../../store/authStore';
 
 
 export type SolutionTag =
@@ -113,6 +113,72 @@ const getTagConfig = (tag: SolutionTag) => {
     );
   }
   return cfg ?? TAG_FALLBACK;
+};
+
+// ─── Empty State ──────────────────────────────────────────────────────────────
+const EmptyState = ({
+  isOrganization,
+  onNewSolution,
+}: {
+  isOrganization: boolean;
+  onNewSolution?: () => void;
+}) => {
+  const pulse = useRef(new Animated.Value(0.92)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0.92,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, []);
+
+  return (
+    <View style={es.wrap}>
+      {/* Glow rings */}
+      <View style={es.glowOuter} />
+      <View style={es.glowInner} />
+
+      {/* Icon */}
+      <Animated.View style={[es.iconWrap, { transform: [{ scale: pulse }] }]}>
+        <Text style={es.iconEmoji}>✦</Text>
+      </Animated.View>
+
+      <Text style={es.title}>No solutions yet</Text>
+      <Text style={es.body}>
+        {isOrganization
+          ? 'Post the first official response to what your team is feeling. It shows up here and earns votes.'
+          : "Your organization hasn't posted any solutions yet. They'll appear here when leadership responds."}
+      </Text>
+
+      {isOrganization && onNewSolution && (
+        <TouchableOpacity
+          onPress={onNewSolution}
+          activeOpacity={0.85}
+          style={es.cta}
+        >
+          <Text style={es.ctaIcon}>📋</Text>
+          <Text style={es.ctaText}>Post a solution</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Decorative dots */}
+      <View style={es.dotsRow}>
+        {[B.purple, B.purpleLight, B.accent].map((color, i) => (
+          <View key={i} style={[es.dot, { backgroundColor: color }]} />
+        ))}
+      </View>
+    </View>
+  );
 };
 
 // ─── Solutions: Vote bar ──────────────────────────────────────────────────────
@@ -382,18 +448,17 @@ export const NewSolutionSheet = ({
   if (!mounted) return null;
 
   const canSubmit = title.trim().length > 5 && body.trim().length > 20;
-  
 
   const submit = () => {
-  if (!canSubmit) return;
-  createSolution(
-    { title: title.trim(), body: body.trim(), tags: selectedTags, status: selectedStatus },
-    {
-      onSuccess: onClose,
-      onError: (err: any) => console.log('CREATE SOLUTION FAILED:', err?.response?.data),
-    },
-  );
-};
+    if (!canSubmit) return;
+    createSolution(
+      { title: title.trim(), body: body.trim(), tags: selectedTags, status: selectedStatus },
+      {
+        onSuccess: onClose,
+        onError: (err: any) => console.log('CREATE SOLUTION FAILED:', err?.response?.data),
+      },
+    );
+  };
 
   return (
     <Animated.View style={[s.sheet, { transform: [{ translateY: slide }] }]}>
@@ -535,7 +600,6 @@ export const SolutionsTab = ({
   const { mutate: vote } = useVoteSolution();
   const { name: orgName } = useOrganizationInfo();
 
-  // ── Pull-to-refresh state ─────────────────────────────────────────────
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -555,6 +619,7 @@ export const SolutionsTab = ({
 
   const thisWeek = solutions.filter((sol) => sol.weekLabel === 'This week');
   const lastWeek = solutions.filter((sol) => sol.weekLabel === 'Last week');
+  const isEmpty = !isLoading && !isError && solutions.length === 0;
 
   return (
     <View style={{ flex: 1 }}>
@@ -575,7 +640,6 @@ export const SolutionsTab = ({
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        // ── Pull-to-refresh ───────────────────────────────────────────────
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -586,7 +650,7 @@ export const SolutionsTab = ({
           />
         }
       >
-        {!isOrganization && (
+        {!isOrganization && !isEmpty && (
           <View style={s.readOnlyBanner}>
             <Text style={{ fontSize: 14 }}>👁️</Text>
             <Text style={s.readOnlyText}>
@@ -607,7 +671,11 @@ export const SolutionsTab = ({
           </View>
         )}
 
-        {!isLoading && !isError && (
+        {isEmpty && (
+          <EmptyState isOrganization={isOrganization} onNewSolution={onNewSolution} />
+        )}
+
+        {!isLoading && !isError && !isEmpty && (
           <>
             <Leaderboard solutions={solutions} />
 
@@ -647,7 +715,7 @@ export const SolutionsTab = ({
         <View style={{ height: 110 }} />
       </ScrollView>
 
-      {isOrganization && (
+      {isOrganization && !isEmpty && (
         <Pressable
           onPress={onNewSolution}
           style={[s.fab, { backgroundColor: B.purple, shadowColor: B.purple }]}
@@ -658,6 +726,103 @@ export const SolutionsTab = ({
     </View>
   );
 };
+
+// ─── Empty State Styles ───────────────────────────────────────────────────────
+const es = StyleSheet.create({
+  wrap: {
+    marginHorizontal: 14,
+    marginTop: 32,
+    marginBottom: 20,
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+    backgroundColor: B.surface,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.15)',
+    overflow: 'hidden',
+  },
+  glowOuter: {
+    position: 'absolute',
+    top: -60,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(139,92,246,0.07)',
+  },
+  glowInner: {
+    position: 'absolute',
+    top: -20,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(139,92,246,0.1)',
+  },
+  iconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: 'rgba(139,92,246,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  iconEmoji: {
+    fontSize: 26,
+    color: B.purpleLight,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: B.text,
+    letterSpacing: -0.4,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  body: {
+    fontSize: 13,
+    color: B.muted,
+    lineHeight: 20,
+    textAlign: 'center',
+    maxWidth: 260,
+    marginBottom: 28,
+  },
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 22,
+    paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: B.purple,
+    shadowColor: B.purple,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    marginBottom: 28,
+  },
+  ctaIcon: { fontSize: 16 },
+  ctaText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.1,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+  },
+  dot: {
+    width: 5,
+    height: 5,
+    borderRadius: 99,
+    opacity: 0.5,
+  },
+});
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({

@@ -7,7 +7,8 @@ import JoinRequestsScreen from "../../../../screens/main/organization/request";
 import AbibekaChatScreen from "../../../../screens/main/user/aiChat";
 import AssignRoleScreen from "../../../../screens/main/organization/assignRole";
 import { ForumScreen } from "../../../../screens/main/user/forum";
-import { useAuthStore } from "../../../../store/authStore"; 
+import { useAuthStore } from "../../../../store/authStore";
+
 // ─── Tokens ──────────────────────────────────────────────────────────────────
 const C = {
   bg: '#04060F',
@@ -25,7 +26,7 @@ type TabItem = {
   icon: string;
   label: string;
   component: React.ComponentType<any>;
-  requiredClearance?: number; // minimum clearance needed — tab shows for this level AND above
+  requiredClearance?: number;
 };
 
 const TAB_CONFIG: TabItem[] = [
@@ -34,7 +35,7 @@ const TAB_CONFIG: TabItem[] = [
     label: 'Home',
     icon: '⬡',
     component: Home,
-    requiredClearance: 4, // clearance level 4 and above only
+    requiredClearance: 4,
   },
   { name: 'Forum',   label: 'Forum',    icon: '◎', component: ForumScreen },
   { name: 'AI',      label: 'Abibeka',  icon: '✦', component: AbibekaChatScreen },
@@ -43,14 +44,14 @@ const TAB_CONFIG: TabItem[] = [
     label: 'Roles',
     icon: '❖',
     component: AssignRoleScreen,
-    requiredClearance: 4, // clearance level 4 and above only
+    requiredClearance: 4,
   },
   {
     name: 'Request',
     label: 'Requests',
     icon: '◈',
     component: JoinRequestsScreen,
-    requiredClearance: 4, // clearance level 4 and above only
+    requiredClearance: 4,
   },
 ];
 
@@ -103,17 +104,18 @@ const Tab = createBottomTabNavigator();
 export default function OrganizationTab() {
   const user = useAuthStore(state => state.user);
 
-  // clearanceLevel is stored as a string in UserData, so parse it.
-  // Number.isNaN guard: if the string is malformed (e.g. empty, or not
-  // numeric), fall back to 0 rather than letting NaN silently make every
-  // `clearanceLevel >= requiredClearance` check false.
+  const isOrganization = user?.role === 'organization';
+
   const parsedClearance = user?.clearanceLevel ? parseInt(user.clearanceLevel, 10) : 0;
   const clearanceLevel = Number.isNaN(parsedClearance) ? 0 : parsedClearance;
-  console.log(clearanceLevel)
+
+  console.log('role:', user?.role, '| clearance:', clearanceLevel);
 
   const visibleTabs = TAB_CONFIG.filter(tab =>
-    // show tab if it has no clearance requirement, OR the user meets/exceeds it
-    tab.requiredClearance === undefined || clearanceLevel >= tab.requiredClearance
+    // org accounts always see all tabs; employees need sufficient clearance
+    isOrganization ||
+    tab.requiredClearance === undefined ||
+    clearanceLevel >= tab.requiredClearance
   );
 
   return (

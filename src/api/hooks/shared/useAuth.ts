@@ -45,15 +45,21 @@ export const useRegister = () => {
     onSuccess: async (data) => {
       await SecureStore.setItemAsync("token", data.token);
 
-      // Seed both stores from the login response immediately
-      login(mapRole(data.user.role), data.user);
+      // For organization accounts, guarantee clearanceLevel is 5 on the
+      // client side immediately — no extra round-trip needed.
+      const user: UserData =
+        data.user.role === "ORGANIZATION"
+          ? { ...data.user, clearanceLevel: "5" }
+          : data.user;
+
+      login(mapRole(user.role), user);
 
       // Seed React Query + AsyncStorage so profile screen is instant
       queryClient.setQueryData(PROFILE_KEYS.me, {
         success: true,
-        data: data.user,
+        data: user,
       });
-      await writeCache("profile:me", data.user);
+      await writeCache("profile:me", user);
     },
   });
 };
