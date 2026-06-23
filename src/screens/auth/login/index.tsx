@@ -52,7 +52,6 @@ const LANGUAGES = [
 ];
 
 // ─── Brand logo ───────────────────────────────────────────────────────────────
-
 const BrandLogo = ({ size = 64 }: { size?: number }) => {
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -108,7 +107,6 @@ const BrandLogo = ({ size = 64 }: { size?: number }) => {
 };
 
 // ─── Language selector ────────────────────────────────────────────────────────
-
 const LangSelector = ({
   selected,
   onSelect,
@@ -149,8 +147,7 @@ const LangSelector = ({
   );
 };
 
-// ─── Role selector (only shown when lastUsedRole === 'employee') ─────────────
-
+// ─── Role selector ────────────────────────────────────────────────────────────
 const RoleSelector = ({
   selected,
   onSelect,
@@ -193,8 +190,7 @@ const RoleSelector = ({
   );
 };
 
-// ─── Input field ─────────────────────────────────────────────────────────────
-
+// ─── Input field ──────────────────────────────────────────────────────────────
 const InputField = ({
   label,
   value,
@@ -202,6 +198,10 @@ const InputField = ({
   secure = false,
   icon,
   enterAnim,
+  onFocusScroll,
+  returnKeyType,
+  onSubmitEditing,
+  inputRef,
 }: {
   label: string;
   value: string;
@@ -209,6 +209,10 @@ const InputField = ({
   secure?: boolean;
   icon: string;
   enterAnim: Animated.Value;
+  onFocusScroll?: () => void;
+  returnKeyType?: "next" | "done" | "go";
+  onSubmitEditing?: () => void;
+  inputRef?: React.RefObject<TextInput>;
 }) => {
   const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
@@ -255,15 +259,22 @@ const InputField = ({
           {icon}
         </Animated.Text>
         <TextInput
+          ref={inputRef}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={secure && !show}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true);
+            onFocusScroll?.();
+          }}
           onBlur={() => setFocused(false)}
           placeholder={label}
           placeholderTextColor="rgba(255,255,255,0.18)"
           style={styles.input}
           autoCapitalize="none"
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
+          blurOnSubmit={returnKeyType === "done"}
         />
         {secure && (
           <Pressable onPress={() => setShow((v) => !v)} hitSlop={8}>
@@ -276,23 +287,17 @@ const InputField = ({
 };
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
-
 interface LoginScreenProps {
   onLogin?: () => void;
   onForgotPass?: () => void;
 }
 
-export default function LoginScreen({
-  onLogin,
-  onForgotPass,
-}: LoginScreenProps) {
+export default function LoginScreen({ onLogin, onForgotPass }: LoginScreenProps) {
   const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Role read from the store — survives logout because it's lastUsedRole,
-  // not the session-scoped userRole (which logout() does still clear).
   const lastUsedRole = useAuthStore((s) => s.lastUsedRole);
   const setUserRole = useAuthStore((s) => s.setUserRole);
   const showRoleSwitch = lastUsedRole === "employee";
@@ -301,176 +306,117 @@ export default function LoginScreen({
     lastUsedRole === "organization" ? "organization" : "employee"
   );
 
-  const logoAnim = useRef(new Animated.Value(0)).current;
-  const headAnim = useRef(new Animated.Value(0)).current;
-  const langAnim = useRef(new Animated.Value(0)).current;
-  const roleAnim = useRef(new Animated.Value(0)).current;
-  const cardAnim = useRef(new Animated.Value(0)).current;
-  const f1Anim = useRef(new Animated.Value(0)).current;
-  const f2Anim = useRef(new Animated.Value(0)).current;
-  const forgotAnim = useRef(new Animated.Value(0)).current;
-  const btnAnim = useRef(new Animated.Value(0)).current;
-  const metaAnim = useRef(new Animated.Value(0)).current;
-  const footerAnim = useRef(new Animated.Value(0)).current;
-  const btnScale = useRef(new Animated.Value(1)).current;
+  // ── Keyboard scroll refs ───────────────────────────────────────────────
+  const scrollRef = useRef<ScrollView>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const cardRef = useRef<View>(null);
 
-  // Login mutation
+  // ── Animation refs ─────────────────────────────────────────────────────
+  const logoAnim  = useRef(new Animated.Value(0)).current;
+  const headAnim  = useRef(new Animated.Value(0)).current;
+  const langAnim  = useRef(new Animated.Value(0)).current;
+  const roleAnim  = useRef(new Animated.Value(0)).current;
+  const cardAnim  = useRef(new Animated.Value(0)).current;
+  const f1Anim    = useRef(new Animated.Value(0)).current;
+  const f2Anim    = useRef(new Animated.Value(0)).current;
+  const forgotAnim = useRef(new Animated.Value(0)).current;
+  const btnAnim   = useRef(new Animated.Value(0)).current;
+  const metaAnim  = useRef(new Animated.Value(0)).current;
+  const footerAnim = useRef(new Animated.Value(0)).current;
+  const btnScale  = useRef(new Animated.Value(1)).current;
+
   const { mutate: loginUser, isPending } = useLogin();
 
-  // Clean Navigation trigger handler
   const handleSignUpRedirect = () => {
-    // Note: Double check that your Router navigator explicitly names this path exactly "SignUp"
     navigation.navigate("SignUp");
   };
 
   const handleSelectRole = (role: "employee" | "organization") => {
     setSelectedRole(role);
-    // Reflects the choice into the active store immediately. NOTE: this
-    // does not by itself change what the backend returns on login — if
-    // your API needs to know which role the person intends to log in as,
-    // that needs to be passed into loginUser() below. Share useLogin's
-    // implementation and I can wire that through properly.
     setUserRole(role);
+  };
+
+  // Scroll the card into view when an input is focused, so the keyboard
+  // never covers the active field.
+  const scrollToCard = () => {
+    cardRef.current?.measureInWindow((_x, y) => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - 24), animated: true });
+    });
+  };
+
+  // Scroll further down to keep the password field above the keyboard.
+  const scrollToPassword = () => {
+    cardRef.current?.measureInWindow((_x, y, _w, h) => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, y + h - 260), animated: true });
+    });
   };
 
   useEffect(() => {
     Animated.stagger(70, [
-      Animated.spring(logoAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 11,
-        useNativeDriver: true,
-      }),
-      Animated.spring(headAnim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(langAnim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(roleAnim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(cardAnim, {
-        toValue: 1,
-        tension: 45,
-        friction: 13,
-        useNativeDriver: true,
-      }),
-      Animated.spring(f1Anim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(f2Anim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(forgotAnim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(btnAnim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(metaAnim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(footerAnim, {
-        toValue: 1,
-        tension: 55,
-        friction: 12,
-        useNativeDriver: true,
-      }),
+      Animated.spring(logoAnim,   { toValue: 1, tension: 50, friction: 11, useNativeDriver: true }),
+      Animated.spring(headAnim,   { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(langAnim,   { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(roleAnim,   { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(cardAnim,   { toValue: 1, tension: 45, friction: 13, useNativeDriver: true }),
+      Animated.spring(f1Anim,     { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(f2Anim,     { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(forgotAnim, { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(btnAnim,    { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(metaAnim,   { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
+      Animated.spring(footerAnim, { toValue: 1, tension: 55, friction: 12, useNativeDriver: true }),
     ]).start();
   }, []);
 
   const handleLogin = () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert(t('common.error') || "Error", t('login.fillAllFields') || "Please enter your email and password.");
+      Alert.alert(
+        t('common.error') || "Error",
+        t('login.fillAllFields') || "Please enter your email and password.",
+      );
       return;
     }
 
     Animated.sequence([
-      Animated.spring(btnScale, {
-        toValue: 0.96,
-        tension: 300,
-        friction: 10,
-        useNativeDriver: true,
-      }),
-      Animated.spring(btnScale, {
-        toValue: 1,
-        tension: 300,
-        friction: 10,
-        useNativeDriver: true,
-      }),
+      Animated.spring(btnScale, { toValue: 0.96, tension: 300, friction: 10, useNativeDriver: true }),
+      Animated.spring(btnScale, { toValue: 1,    tension: 300, friction: 10, useNativeDriver: true }),
     ]).start();
 
     loginUser(
       { email: email.trim(), password },
       {
-        onSuccess: () => {
-          onLogin?.();
-        },
+        onSuccess: () => onLogin?.(),
         onError: (err: any) => {
           const message =
             err?.response?.data?.message ||
             "Invalid email or password. Please try again.";
           Alert.alert(t('login.loginFailed') || "Login failed", message);
         },
-      }
+      },
     );
   };
 
-  const logoY = logoAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-24, 0],
-  });
-  const cardY = cardAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [32, 0],
-  });
-  const headY = headAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [12, 0],
-  });
+  const logoY = logoAnim.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] });
+  const cardY = cardAnim.interpolate({ inputRange: [0, 1], outputRange: [32,  0] });
+  const headY = headAnim.interpolate({ inputRange: [0, 1], outputRange: [12,  0] });
 
   return (
     <View style={styles.root}>
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="light-content"
-      />
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          // Extra offset so the card clears the keyboard with breathing room
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
         >
           <ScrollView
+            ref={scrollRef}
             contentContainerStyle={styles.scroll}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+            // Let the ScrollView shrink when the keyboard appears (Android)
+            keyboardDismissMode="interactive"
           >
             {/* Logo + wordmark */}
             <Animated.View
@@ -504,22 +450,25 @@ export default function LoginScreen({
               enterAnim={langAnim}
             />
 
-            {/* Role selector — only when lastUsedRole === 'employee' */}
-            {showRoleSwitch && (
+            {/* Role selector */}
+            {/* {showRoleSwitch && (
               <RoleSelector
                 selected={selectedRole}
                 onSelect={handleSelectRole}
                 enterAnim={roleAnim}
               />
-            )}
+            )} */}
 
-            {/* Card Frame */}
+            {/* Card */}
             <Animated.View
               style={[
                 styles.card,
                 { opacity: cardAnim, transform: [{ translateY: cardY }] },
               ]}
             >
+              {/* Invisible ref anchor on the inner View so measureInWindow works */}
+              <View ref={cardRef} />
+
               <View style={styles.cardLeftAccent} />
 
               <View style={styles.badge}>
@@ -528,11 +477,8 @@ export default function LoginScreen({
               </View>
 
               <Text style={styles.cardTitle}>{t('login.signIn')}</Text>
-              <Text style={styles.cardSub}>
-                {t('login.continueJourney')}
-              </Text>
+              <Text style={styles.cardSub}>{t('login.continueJourney')}</Text>
 
-              {/* Input Fields */}
               <View style={{ marginTop: 24 }}>
                 <InputField
                   label={t('auth.emailAddress')}
@@ -540,30 +486,33 @@ export default function LoginScreen({
                   onChangeText={setEmail}
                   icon="✉"
                   enterAnim={f1Anim}
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  onFocusScroll={scrollToCard}
                 />
                 <InputField
+                  inputRef={passwordRef}
                   label={t('auth.vaultPassword')}
                   value={password}
                   onChangeText={setPassword}
                   icon="⚿"
                   secure
                   enterAnim={f2Anim}
+                  returnKeyType="done"
+                  onSubmitEditing={handleLogin}
+                  onFocusScroll={scrollToPassword}
                 />
               </View>
 
-              {/* Forgot Password Row */}
-              <Animated.View
-                style={[styles.forgotRow, { opacity: forgotAnim }]}
-              >
+              {/* Forgot Password */}
+              <Animated.View style={[styles.forgotRow, { opacity: forgotAnim }]}>
                 <Pressable onPress={onForgotPass} hitSlop={10}>
                   <Text style={styles.forgotText}>{t('login.forgotPassword')}</Text>
                 </Pressable>
               </Animated.View>
 
-              {/* Submit Trigger Action */}
-              <Animated.View
-                style={{ opacity: btnAnim, transform: [{ scale: btnScale }] }}
-              >
+              {/* Submit */}
+              <Animated.View style={{ opacity: btnAnim, transform: [{ scale: btnScale }] }}>
                 <TouchableOpacity
                   onPress={handleLogin}
                   activeOpacity={0.88}
@@ -574,28 +523,26 @@ export default function LoginScreen({
                     {isPending ? (t('login.signingIn') || "Signing in...") : t('login.signIn')}
                   </Text>
                   {!isPending && <View style={styles.btnDot} />}
-                  {isPending && <ActivityIndicator size="small" color="#fff" style={{ marginLeft: 10 }} />}
+                  {isPending && (
+                    <ActivityIndicator size="small" color="#fff" style={{ marginLeft: 10 }} />
+                  )}
                 </TouchableOpacity>
               </Animated.View>
 
-              {/* Security Meta Row */}
+              {/* Security meta */}
               <Animated.View style={[styles.metaRow, { opacity: metaAnim }]}>
                 <View style={styles.metaItem}>
-                  <View
-                    style={[styles.metaDot, { backgroundColor: BRAND.accent }]}
-                  />
+                  <View style={[styles.metaDot, { backgroundColor: BRAND.accent }]} />
                   <Text style={styles.metaText}>{t('login.endToEndEncrypted')}</Text>
                 </View>
                 <View style={styles.metaItem}>
-                  <View
-                    style={[styles.metaDot, { backgroundColor: BRAND.primary }]}
-                  />
+                  <View style={[styles.metaDot, { backgroundColor: BRAND.primary }]} />
                   <Text style={styles.metaText}>{t('login.anonymousIdentity')}</Text>
                 </View>
               </Animated.View>
             </Animated.View>
 
-            {/* Account Switch Redirect Link Footer */}
+            {/* Footer */}
             <Animated.View style={[styles.footer, { opacity: footerAnim }]}>
               <Text style={styles.footerText}>{t('login.newToAbibeka')}</Text>
               <Pressable onPress={handleSignUpRedirect} hitSlop={12}>
@@ -609,30 +556,19 @@ export default function LoginScreen({
   );
 }
 
-// ─── Layout Styling Elements ─────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BRAND.bg },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 28,
-    paddingBottom: 40,
+    paddingBottom: 60,
   },
   logoBlock: { flexDirection: "row", alignItems: "center", marginBottom: 32 },
-  wordmark: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: BRAND.text,
-    letterSpacing: -0.5,
-  },
+  wordmark: { fontSize: 22, fontWeight: "800", color: BRAND.text, letterSpacing: -0.5 },
   wordmarkSub: { fontSize: 11, color: BRAND.muted, marginTop: 2 },
-  pageTitle: {
-    fontSize: 30,
-    fontWeight: "800",
-    color: BRAND.text,
-    letterSpacing: -0.8,
-    marginBottom: 4,
-  },
+  pageTitle: { fontSize: 30, fontWeight: "800", color: BRAND.text, letterSpacing: -0.8, marginBottom: 4 },
   pageSub: { fontSize: 14, color: BRAND.muted },
   langRow: { flexDirection: "row", gap: 10, marginBottom: 24 },
   langPill: {
@@ -646,10 +582,7 @@ const styles = StyleSheet.create({
     borderColor: BRAND.border,
     backgroundColor: "rgba(255,255,255,0.03)",
   },
-  langPillActive: {
-    borderColor: BRAND.primary,
-    backgroundColor: "rgba(15,118,110,0.12)",
-  },
+  langPillActive: { borderColor: BRAND.primary, backgroundColor: "rgba(15,118,110,0.12)" },
   langFlag: { fontSize: 14 },
   langLabel: { fontSize: 12, fontWeight: "600", color: BRAND.muted },
   langLabelActive: { color: BRAND.primary },
@@ -672,10 +605,7 @@ const styles = StyleSheet.create({
     borderColor: BRAND.border,
     backgroundColor: "rgba(255,255,255,0.03)",
   },
-  rolePillActive: {
-    borderColor: BRAND.primary,
-    backgroundColor: "rgba(15,118,110,0.12)",
-  },
+  rolePillActive: { borderColor: BRAND.primary, backgroundColor: "rgba(15,118,110,0.12)" },
   rolePillText: { fontSize: 13, fontWeight: "700", color: BRAND.muted },
   rolePillTextActive: { color: BRAND.primary },
   card: {
@@ -710,26 +640,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15,118,110,0.1)",
     marginBottom: 20,
   },
-  badgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: BRAND.accent,
-    marginRight: 7,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: BRAND.primary,
-    letterSpacing: 0.3,
-  },
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: BRAND.text,
-    letterSpacing: -0.5,
-    marginBottom: 4,
-  },
+  badgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: BRAND.accent, marginRight: 7 },
+  badgeText: { fontSize: 11, fontWeight: "700", color: BRAND.primary, letterSpacing: 0.3 },
+  cardTitle: { fontSize: 24, fontWeight: "800", color: BRAND.text, letterSpacing: -0.5, marginBottom: 4 },
   cardSub: { fontSize: 13, color: BRAND.muted, lineHeight: 20 },
   inputLabel: {
     fontSize: 11,
@@ -760,19 +673,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  btnText: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#fff",
-    letterSpacing: 0.2,
-  },
-  btnDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 99,
-    backgroundColor: BRAND.accent,
-    marginLeft: 10,
-  },
+  btnText: { fontSize: 16, fontWeight: "800", color: "#fff", letterSpacing: 0.2 },
+  btnDot: { width: 7, height: 7, borderRadius: 99, backgroundColor: BRAND.accent, marginLeft: 10 },
   metaRow: {
     flexDirection: "row",
     gap: 20,
