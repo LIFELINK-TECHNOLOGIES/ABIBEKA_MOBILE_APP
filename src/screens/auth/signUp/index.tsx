@@ -6,6 +6,7 @@ import {
   Dimensions,
   Easing,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -41,6 +42,90 @@ const BRAND = {
   text: "#FFFFFF",
   muted: "rgba(255,255,255,0.45)",
   input: "rgba(255,255,255,0.04)",
+};
+
+// ─── Privacy Policy Content ──────────────────────────────────────────────────
+const PRIVACY_POLICY_CONTENT = {
+  title: "Abibeka Privacy Policy",
+  lastUpdated: "Last Updated: 2024",
+  sections: [
+    {
+      title: "Welcome to Abibeka",
+      content: "Your privacy, confidentiality and trust are fundamental to us. We protect personal information while providing a secure platform for anonymous workplace communication."
+    },
+    {
+      title: "1. Information We Collect",
+      content: "Account information, organization information, messages/reports and technical information."
+    },
+    {
+      title: "2. Anonymous Communication",
+      content: "Anonymous submissions are designed not to reveal identity. Users should avoid self-identifying information when choosing anonymity."
+    },
+    {
+      title: "3. How We Use Information",
+      content: "Operate and improve the platform, deliver services, maintain security, detect abuse and comply with legal obligations."
+    },
+    {
+      title: "4. Data Security",
+      content: "Reasonable technical and organisational safeguards protect data."
+    },
+    {
+      title: "5. Data Sharing",
+      content: "We do not sell personal information. Sharing occurs only where necessary to operate the service or comply with law."
+    },
+    {
+      title: "6. User Rights",
+      content: "Users may request access, correction or deletion where applicable."
+    },
+    {
+      title: "7. Three-Layer Moderation System",
+      content: "Abibeka uses AI Prevention, Human Review and Community Flagging to identify harmful content, preserve anonymity, and ensure that moderation decisions are fair. AI assists moderation, but final decisions are made by authorised human moderators. This system exists to promote accountability, build trust and protect confidentiality."
+    },
+    {
+      title: "8. Policy Updates",
+      content: "Continued use indicates acceptance of updates."
+    }
+  ]
+};
+
+const TERMS_OF_USE_CONTENT = {
+  title: "Abibeka Terms of Use",
+  sections: [
+    {
+      title: "Purpose",
+      content: "Workplace communication, anonymous feedback, reporting concerns and organisational engagement. Users must act truthfully and respectfully and must not harass, threaten, discriminate, upload illegal content or make malicious accusations. Anonymous reports remain the responsibility of the author. Organisations should investigate reports fairly, respect privacy and prohibit retaliation."
+    },
+    {
+      title: "Content Moderation",
+      content: "Abibeka enforces its Three-Layer Moderation System. All submissions may be screened by AI before publication, reviewed by human moderators where required, and flagged by users after publication. This process is designed to ensure accountability, trust and confidentiality while maintaining a safe environment."
+    },
+    {
+      title: "Limitation of Liability and Changes",
+      content: "Platform provided as-is; continued use indicates acceptance of updates."
+    }
+  ]
+};
+
+const COMMUNITY_GUIDELINES_CONTENT = {
+  title: "Abibeka Community Guidelines",
+  sections: [
+    {
+      title: "Our Commitment",
+      content: "Encourage honest, respectful and constructive communication."
+    },
+    {
+      title: "Prohibited Content",
+      content: "Hate speech, bullying, harassment, false reports, threats, disclosure of private information, spam and illegal content."
+    },
+    {
+      title: "Enforcement",
+      content: "Users may flag content for moderator review. Violations may result in removal, suspension, restriction or legal reporting where required."
+    },
+    {
+      title: "Our Promise",
+      content: "Abibeka's Three-Layer Moderation System helps ensure every report is handled responsibly, protects anonymous users where promised, supports fair human review, and strengthens accountability, trust and confidentiality across the platform."
+    }
+  ]
 };
 
 // ─── Options ──────────────────────────────────────────────────────────────────
@@ -274,6 +359,135 @@ const GridSelector = ({
   );
 };
 
+// ─── Privacy Policy Modal ────────────────────────────────────────────────────
+const PrivacyPolicyModal = ({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) => {
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalRoot}>
+        <SafeAreaView style={{ flex: 1 }}>
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <Pressable onPress={onClose} style={styles.modalCloseButton}>
+              <Text style={styles.modalCloseText}>✕</Text>
+            </Pressable>
+            <Text style={styles.modalTitle}>Legal Information</Text>
+            <View style={{ width: 40 }} />
+          </View>
+
+          <ScrollView 
+            style={styles.modalContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Privacy Policy */}
+            <Text style={styles.policyTitle}>{PRIVACY_POLICY_CONTENT.title}</Text>
+            <Text style={styles.policyLastUpdated}>{PRIVACY_POLICY_CONTENT.lastUpdated}</Text>
+            
+            {PRIVACY_POLICY_CONTENT.sections.map((section, index) => (
+              <View key={index} style={styles.policySection}>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <Text style={styles.sectionContent}>{section.content}</Text>
+              </View>
+            ))}
+
+            {/* Terms of Use */}
+            <Text style={[styles.policyTitle, { marginTop: 32 }]}>{TERMS_OF_USE_CONTENT.title}</Text>
+            
+            {TERMS_OF_USE_CONTENT.sections.map((section, index) => (
+              <View key={index} style={styles.policySection}>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <Text style={styles.sectionContent}>{section.content}</Text>
+              </View>
+            ))}
+
+            {/* Community Guidelines */}
+            <Text style={[styles.policyTitle, { marginTop: 32 }]}>{COMMUNITY_GUIDELINES_CONTENT.title}</Text>
+            
+            {COMMUNITY_GUIDELINES_CONTENT.sections.map((section, index) => (
+              <View key={index} style={styles.policySection}>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <Text style={styles.sectionContent}>{section.content}</Text>
+              </View>
+            ))}
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+
+          {/* Accept Button */}
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.modalAcceptButton}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.modalAcceptText}>I Understand & Accept</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </View>
+    </Modal>
+  );
+};
+
+// ─── Privacy Policy Checkbox ──────────────────────────────────────────────────
+const PrivacyPolicyCheckbox = ({
+  accepted,
+  onToggle,
+  onViewPolicy,
+}: {
+  accepted: boolean;
+  onToggle: () => void;
+  onViewPolicy: () => void;
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <View style={styles.privacyContainer}>
+      <Pressable
+        onPress={onToggle}
+        style={styles.checkboxRow}
+        hitSlop={10}
+      >
+        <Animated.View
+          style={[
+            styles.checkbox,
+            accepted && styles.checkboxActive,
+          ]}
+        >
+          {accepted && (
+            <Text style={styles.checkmark}>✓</Text>
+          )}
+        </Animated.View>
+        <View style={styles.privacyTextContainer}>
+          <Text style={styles.privacyText}>
+            {t('auth.iAgreeTo') || "I agree to the"}{" "}
+          </Text>
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation();
+              onViewPolicy();
+            }}
+          >
+            <Text style={styles.privacyLink}>
+              {t('auth.privacyPolicy') || "Privacy Policy & Terms of Use"}
+            </Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </View>
+  );
+};
+
 // ─── Main Signup Screen Component ────────────────────────────────────────────
 interface SignUpScreenProps {
   onSignInPress?: () => void;
@@ -297,6 +511,10 @@ export default function SignUpScreen() {
   const [location, setLocation] = useState("");
   const [employeeRange, setEmployeeRange] = useState("");
   const [businessSector, setBusinessSector] = useState("");
+
+  // Privacy Policy State
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
 
   // Staggered Entry Animation Hooks
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -352,6 +570,15 @@ export default function SignUpScreen() {
 
     if (password.length < 6) {
       Alert.alert(t('common.error') || "Error", "Password must be at least 6 characters.");
+      return;
+    }
+
+    // Privacy Policy validation
+    if (!privacyAccepted) {
+      Alert.alert(
+        t('common.error') || "Error",
+        t('auth.privacyRequired') || "You must accept the Privacy Policy & Terms of Use to continue."
+      );
       return;
     }
 
@@ -600,6 +827,13 @@ export default function SignUpScreen() {
                   icon="⚿"
                   secure
                 />
+
+                {/* Privacy Policy Checkbox */}
+                <PrivacyPolicyCheckbox
+                  accepted={privacyAccepted}
+                  onToggle={() => setPrivacyAccepted(!privacyAccepted)}
+                  onViewPolicy={() => setShowPolicyModal(true)}
+                />
               </Animated.View>
 
               {/* Register Callout Action */}
@@ -610,7 +844,10 @@ export default function SignUpScreen() {
                   onPress={handleSignUp}
                   activeOpacity={0.88}
                   disabled={isPending}
-                  style={[styles.btn, isPending && { opacity: 0.7 }]}
+                  style={[
+                    styles.btn,
+                    (!privacyAccepted || isPending) && { opacity: 0.5 }
+                  ]}
                 >
                   <Text style={styles.btnText}>
                     {isPending ? "Creating account..." : t('auth.generateCredentials')}
@@ -646,6 +883,15 @@ export default function SignUpScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+
+      {/* Privacy Policy Modal */}
+      <PrivacyPolicyModal
+        visible={showPolicyModal}
+        onClose={() => {
+          setShowPolicyModal(false);
+          setPrivacyAccepted(true);
+        }}
+      />
     </View>
   );
 }
@@ -887,6 +1133,148 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND.accent,
     marginLeft: 10,
   },
+
+  // Privacy Policy Checkbox Styles
+  privacyContainer: {
+    marginTop: 8,
+    marginBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.06)",
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  checkboxActive: {
+    backgroundColor: BRAND.primary,
+    borderColor: BRAND.primary,
+  },
+  checkmark: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "bold",
+    marginTop: -1,
+  },
+  privacyTextContainer: {
+    flex: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginLeft: 10,
+  },
+  privacyText: {
+    fontSize: 13,
+    color: BRAND.muted,
+    lineHeight: 18,
+  },
+  privacyLink: {
+    fontSize: 13,
+    color: BRAND.primary,
+    fontWeight: "700",
+    textDecorationLine: "underline",
+    lineHeight: 18,
+  },
+
+  // Modal Styles
+  modalRoot: {
+    flex: 1,
+    backgroundColor: "#0A1020",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCloseText: {
+    color: BRAND.muted,
+    fontSize: 20,
+    fontWeight: "600",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: BRAND.text,
+    letterSpacing: -0.3,
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+  },
+  policyTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: BRAND.text,
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  policyLastUpdated: {
+    fontSize: 12,
+    color: BRAND.muted,
+    marginBottom: 24,
+  },
+  policySection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: BRAND.primary,
+    marginBottom: 8,
+  },
+  sectionContent: {
+    fontSize: 14,
+    color: BRAND.muted,
+    lineHeight: 22,
+  },
+  modalFooter: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#0A1020",
+  },
+  modalAcceptButton: {
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: BRAND.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: BRAND.primary,
+    shadowRadius: 16,
+    shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  modalAcceptText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.2,
+  },
+
   metaRow: {
     flexDirection: "row",
     gap: 20,
