@@ -14,7 +14,7 @@ import Text, { TextSize, TextVariant } from "./txt";
 
 export type BtnVariant = "filled" | "outlined" | "ghost" | "danger" | "success";
 
-export type BtnSize = "xs" | "sm" | "md" | "lg" | "xl";
+export type BtnSize = "xs" | "sm" | "md" | "lg";
 
 const SIZE_TOKENS: Record<
   BtnSize,
